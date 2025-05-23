@@ -24,25 +24,25 @@ import {
 import Badge from "../ui/badge/Badge";
 // import Image from "next/image"; // Image might not be needed for Bin data unless Location is an image path
 
-// Define a type for the form data, excluding BinID for creation
+// Define a type for the form data, excluding id for creation
 interface BinFormData {
-  Location: string;
-  Latitude: number | string; // Allow string for input field, convert to number on submit
-  Longitude: number | string; // Allow string for input field, convert to number on submit
-  IsActive: boolean;
+  label: string; // Changed from Location to label
+  latitude: number | string;
+  longitude: number | string;
+  is_active: boolean;
 }
 
 interface Bin extends BinFormData {
-  BinID: number;
-  CreatedAt: string; // Assuming CreatedAt is a string, adjust if it's a Date object
+  id: number; // Changed from BinID to id
+  created_at: string; // Changed from CreatedAt to created_at
 }
 
 // Initial form state for creating a new bin
 const initialBinFormData: BinFormData = {
-  Location: "",
-  Latitude: "",
-  Longitude: "",
-  IsActive: true,
+  label: "",
+  latitude: "",
+  longitude: "",
+  is_active: true,
 };
 
 
@@ -95,9 +95,11 @@ export default function BinsTable() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          Latitude: parseFloat(formData.Latitude as string),
-          Longitude: parseFloat(formData.Longitude as string),
+          // Send snake_case keys to the API
+          Location: formData.label, // API expects Location, maps to label in DB
+          Latitude: parseFloat(formData.latitude as string),
+          Longitude: parseFloat(formData.longitude as string),
+          IsActive: formData.is_active,
         }),
       });
       if (!response.ok) {
@@ -124,10 +126,12 @@ export default function BinsTable() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          BinID: currentBin.BinID,
-          ...formData,
-          Latitude: parseFloat(formData.Latitude as string),
-          Longitude: parseFloat(formData.Longitude as string),
+          BinID: currentBin.id, // Use id here
+          // Send snake_case keys to the API for properties being updated
+          Location: formData.label, // API expects Location
+          Latitude: parseFloat(formData.latitude as string),
+          Longitude: parseFloat(formData.longitude as string),
+          IsActive: formData.is_active,
         }),
       });
       if (!response.ok) {
@@ -135,7 +139,7 @@ export default function BinsTable() {
         throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
       }
       const updatedBin = await response.json();
-      setBinsData(binsData.map(b => b.BinID === updatedBin.BinID ? updatedBin : b));
+      setBinsData(binsData.map(b => b.id === updatedBin.id ? updatedBin : b)); // Compare with id
       setIsEditModalOpen(false);
       setCurrentBin(null);
     } catch (e) {
@@ -152,13 +156,13 @@ export default function BinsTable() {
       const response = await fetch('/api/bins', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ BinID: binId }),
+        body: JSON.stringify({ BinID: binId }), // API expects BinID, ensure this matches API
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
       }
-      setBinsData(binsData.filter(b => b.BinID !== binId));
+      setBinsData(binsData.filter(b => b.id !== binId)); // Filter by id
       setIsDeleteConfirmOpen(false);
       setCurrentBin(null);
     } catch (e) {
@@ -173,10 +177,10 @@ export default function BinsTable() {
   const openEditModal = (bin: Bin) => {
     setCurrentBin(bin);
     setFormData({
-      Location: bin.Location,
-      Latitude: bin.Latitude.toString(),
-      Longitude: bin.Longitude.toString(),
-      IsActive: bin.IsActive,
+      label: bin.label,
+      latitude: bin.latitude.toString(),
+      longitude: bin.longitude.toString(),
+      is_active: bin.is_active,
     });
     setIsEditModalOpen(true);
   };
@@ -197,6 +201,7 @@ export default function BinsTable() {
   if (!binsData || binsData.length === 0) {
     return <div className="p-4 text-center">No bin data available.</div>;
   }
+
   const renderBinForm = (submitHandler: () => void, closeHandler: () => void, isEditMode: boolean) => (
     <>
       <DialogHeader>
@@ -205,31 +210,22 @@ export default function BinsTable() {
           {isEditMode ? 'Update the details of the bin.' : 'Enter the details for the new bin.'}
         </DialogDescription>
       </DialogHeader>
-      {/* ModalBody is not available in Dialog, content is placed directly or within DialogContent */}
-      <div className="grid gap-4 py-4"> {/* This div was previously inside ModalBody */}
+      <div className="grid gap-4 py-4">
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Location" className="text-right">
-            Location
-          </Label>
-          <Input id="Location" name="Location" defaultValue={formData.Location} onChange={handleInputChange} className="col-span-3" />
+          <Label htmlFor="label" className="text-right">Location</Label>
+          <Input id="label" name="label" defaultValue={formData.label} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Latitude" className="text-right">
-            Latitude
-          </Label>
-          <Input id="Latitude" name="Latitude" defaultValue={formData.Latitude} onChange={handleInputChange} className="col-span-3" />
+          <Label htmlFor="latitude" className="text-right">Latitude</Label>
+          <Input id="latitude" name="latitude" defaultValue={formData.latitude} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Longitude" className="text-right">
-            Longitude
-          </Label>
-          <Input id="Longitude" name="Longitude" defaultValue={formData.Longitude} onChange={handleInputChange} className="col-span-3" />
+          <Label htmlFor="longitude" className="text-right">Longitude</Label>
+          <Input id="longitude" name="longitude" defaultValue={formData.longitude} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="IsActive" className="text-right">
-            Active
-          </Label>
-          <Input id="IsActive" name="IsActive" type="checkbox" checked={formData.IsActive} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
+          <Label htmlFor="is_active" className="text-right">Active</Label>
+          <Input id="is_active" name="is_active" type="checkbox" checked={formData.is_active} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
         </div>
       </div>
       <DialogFooter>
@@ -238,6 +234,7 @@ export default function BinsTable() {
       </DialogFooter>
     </>
   );
+  
 
   return (
     <div className="p-4">
@@ -264,12 +261,13 @@ export default function BinsTable() {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete bin &quot;{currentBin?.Location}&quot; (ID: {currentBin?.BinID})? This action cannot be undone. 
+              Are you sure you want to delete bin &quot;{currentBin?.label}&quot; (ID: {currentBin?.id})? This action cannot be undone.
             </DialogDescription>
+
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { if (currentBin) handleDeleteBin(currentBin.BinID); setIsDeleteConfirmOpen(false); }}>Delete</Button>
+            <Button variant="destructive" onClick={() => { if (currentBin) handleDeleteBin(currentBin.id); setIsDeleteConfirmOpen(false); }}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -335,32 +333,32 @@ export default function BinsTable() {
               {/* Table Body */}
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {binsData.map((bin, index) => (
-                  <TableRow key={bin.BinID}>
+                  <TableRow key={bin.id}>
                     <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
                       {index + 1}
                     </TableCell>
                     <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
-                      {bin.BinID}
+                      {bin.id}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                      {bin.Location}
+                      {bin.label}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                      {bin.Latitude}
+                      {bin.latitude}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                      {bin.Longitude}
+                      {bin.longitude}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                       <Badge
                         size="sm"
-                        color={bin.IsActive ? "success" : "error"}
+                        color={bin.is_active ? "success" : "error"}
                       >
-                        {bin.IsActive ? "Active" : "Inactive"}
+                        {bin.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                      {new Date(bin.CreatedAt).toLocaleDateString()} {/* Format date as needed */}
+                      {new Date(bin.created_at).toLocaleDateString()} {/* Format date as needed */}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                       <Button variant="outline" size="sm" className="mr-2" onClick={() => openEditModal(bin)}>

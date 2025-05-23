@@ -1,19 +1,15 @@
 "use client";
 import React, { useEffect, useState } from "react";
 
+// Updated TruckAssignment type to match the API response structure
 type TruckAssignment = {
-  id: number;
-  scheduled_time: string;
+  assignmentId: number;
+  truckId: number | null;
+  driverName: string;
+  plateNo: string;
+  binLabel: string;
+  scheduledTime: string;
   status: string;
-  trucks: {
-    id: number;
-    plate_no: string;
-    driver_name: string;
-  } | null;
-  bins: {
-    id: number;
-    label: string;
-  } | null;
 };
 
 
@@ -29,7 +25,9 @@ export default function TruckSchedule() {
           // Optionally set an error state to display to the user
           return;
         }
-        const data: TruckAssignment[] = await res.json();
+        // The API returns an array of objects with camelCase properties directly
+        // e.g., { assignmentId, truckId, driverName, plateNo, binLabel, scheduledTime, status }
+        const data = await res.json(); 
         setAssignments(data);
       } catch (err) {
         console.error("Failed to load truck schedule", err);
@@ -68,30 +66,25 @@ export default function TruckSchedule() {
             ) : (
               assignments.map((assignment) => (
                 // Use the correct camelCase 'assignmentId' for the key
-                <tr key={assignment.id} className="border-t border-gray-200 dark:border-gray-700">
+                <tr key={assignment.assignmentId} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">
-                    {/* Use correct camelCase 'plateNo' */}
-                    {assignment.trucks?.plate_no ?? "Unknown"}
+                    {assignment.plateNo ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {/* Use correct camelCase 'driverName' */}
-                    {assignment.trucks?.driver_name ?? "Unknown"}
+                    {assignment.driverName ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {/* Use correct camelCase 'binLabel' */}
-                    {assignment.bins?.label ?? "Unknown"}
+                    {assignment.binLabel ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {/* Use correct camelCase 'scheduledTime' */}
-                    {new Date(assignment.scheduled_time).toLocaleTimeString([], {
+                    {new Date(assignment.scheduledTime).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                        // Use correct camelCase 'status'
+                      className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${                       
                         assignment.status === "Completed"
                           ? "bg-green-100 text-green-800"
                           : assignment.status === "In Progress"
@@ -99,7 +92,6 @@ export default function TruckSchedule() {
                           : "bg-gray-100 text-gray-800" // Default for other statuses like "Pending" etc.
                       }`}
                     >
-                      {/* Use correct camelCase 'status' */}
                       {assignment.status}
                     </span>
                   </td>

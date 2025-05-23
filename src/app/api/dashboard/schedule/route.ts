@@ -24,7 +24,7 @@ export async function GET() {
     const today = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-    const { data, error } = await supabase // Renamed 'error' to 'queryError' for clarity
+    const { data } = await supabase // Renamed 'error' to 'queryError' for clarity
       .from("truck_assignments")
       .select(`
         id,

@@ -1,113 +1,133 @@
 // src/app/api/bins/route.ts
-import { NextResponse } from 'next/server';
-import { getConnection } from '@/lib/db';
+import { NextResponse, NextRequest } from 'next/server';
+import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
 
-import { NextRequest } from 'next/server';
-
+// GET all bins
 export async function GET() {
   try {
-    const pool = await getConnection();
-    const result = await pool.request().query('SELECT TOP (1000) [BinID], [Location], [Latitude], [Longitude], [IsActive], [CreatedAt] FROM [db_kutip].[dbo].[Bins]');
-    return NextResponse.json(result.recordset);
-  } catch (error) {
+    const { data, error } = await supabase
+      .from('bins') // Supabase table name
+      .select('*') // Select all columns
+      .order('created_at', { ascending: false }); // Assuming 'created_at' column and desired order
+
+    if (error) throw error;
+
+    return NextResponse.json(data);
+  } catch (error: any) {
     console.error('GET /api/bins error:', error);
-    return NextResponse.json({ error: 'Failed to fetch bins', details: (error as Error).message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch bins', details: error.message }, { status: 500 });
   }
 }
 
+// POST a new bin
 export async function POST(request: NextRequest) {
   try {
     const { Location, Latitude, Longitude, IsActive } = await request.json();
+
+    // Validate required fields (adjust table and column names as per your Supabase schema)
     if (!Location || Latitude === undefined || Longitude === undefined) {
       return NextResponse.json({ error: 'Missing required fields: Location, Latitude, and Longitude are required.' }, { status: 400 });
     }
 
-    const pool = await getConnection();
-    const result = await pool.request()
-      .input('Location', Location)
-      .input('Latitude', Latitude)
-      .input('Longitude', Longitude)
-      .input('IsActive', IsActive === undefined ? true : IsActive) // Default to true if not provided
-      .query('INSERT INTO [db_kutip].[dbo].[Bins] (Location, Latitude, Longitude, IsActive) OUTPUT INSERTED.* VALUES (@Location, @Latitude, @Longitude, @IsActive)');
-    
-    return NextResponse.json(result.recordset[0], { status: 201 });
-  } catch (error) {
+    const { data, error } = await supabase
+      .from('bins')
+      .insert([
+        {
+          label: Location, // Assuming 'label' is the column name in Supabase for Location
+          latitude: Latitude,
+          longitude: Longitude,
+          is_active: IsActive === undefined ? true : IsActive, // Assuming 'is_active'
+          // created_at will likely be handled by Supabase (e.g. default now())
+        },
+      ])
+      .select() // Return the inserted record
+      .single(); // Expect a single record
+
+    if (error) throw error;
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error: any) {
     console.error('POST /api/bins error:', error);
-    return NextResponse.json({ error: 'Failed to create bin', details: (error as Error).message }, { status: 500 });
+    // Handle potential Supabase-specific errors, e.g., unique constraint violations
+    if (error.code === '23505') { // PostgreSQL unique violation error code
+        return NextResponse.json({ error: 'Failed to create bin. Location might already exist.', details: error.message }, { status: 409 });
+    }
+    return NextResponse.json({ error: 'Failed to create bin', details: error.message }, { status: 500 });
   }
 }
 
+// PUT (update) an existing bin
 export async function PUT(request: NextRequest) {
   try {
     const { BinID, Location, Latitude, Longitude, IsActive } = await request.json();
+
     if (!BinID) {
-      return NextResponse.json({ error: 'BinID is required for updating.' }, { status: 400 });
+      return NextResponse.json({ error: 'BinID (or your primary key for bins) is required for updating.' }, { status: 400 });
     }
 
-    const pool = await getConnection();
-    let query = 'UPDATE [db_kutip].[dbo].[Bins] SET ';
-    const params: { name: string, value: unknown }[] = [];
-    const setClauses: string[] = [];
+    const updateData: { [key: string]: any } = {};
+    if (Location !== undefined) updateData.label = Location; // Assuming 'label' for Location
+    if (Latitude !== undefined) updateData.latitude = Latitude;
+    if (Longitude !== undefined) updateData.longitude = Longitude;
+    if (IsActive !== undefined) updateData.is_active = IsActive;
 
-    if (Location !== undefined) { 
-      setClauses.push('[Location] = @Location');
-      params.push({ name: 'Location', value: Location });
-    }
-    if (Latitude !== undefined) { 
-      setClauses.push('[Latitude] = @Latitude');
-      params.push({ name: 'Latitude', value: Latitude });
-    }
-    if (Longitude !== undefined) { 
-      setClauses.push('[Longitude] = @Longitude');
-      params.push({ name: 'Longitude', value: Longitude });
-    }
-    if (IsActive !== undefined) { 
-      setClauses.push('[IsActive] = @IsActive');
-      params.push({ name: 'IsActive', value: IsActive });
-    }
-
-    if (setClauses.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No fields to update.' }, { status: 400 });
     }
 
-    query += setClauses.join(', ') + ' OUTPUT INSERTED.* WHERE [BinID] = @BinID';
-    params.push({ name: 'BinID', value: BinID });
+    const { data, error } = await supabase
+      .from('bins')
+      .update(updateData)
+      .eq('id', BinID) // Assuming 'id' is the primary key column name in your Supabase 'bins' table
+      .select()
+      .single();
 
-    const requestInstance = pool.request();
-    params.forEach(p => requestInstance.input(p.name, p.value));
-    
-    const result = await requestInstance.query(query);
-
-    if (result.recordset.length === 0) {
-      return NextResponse.json({ error: 'Bin not found or no changes made.' }, { status: 404 });
+    if (error) throw error;
+    if (!data) {
+        return NextResponse.json({ error: 'Bin not found or no changes made.' }, { status: 404 });
     }
-    
-    return NextResponse.json(result.recordset[0]);
-  } catch (error) {
+
+    return NextResponse.json(data);
+  } catch (error: any) {
     console.error('PUT /api/bins error:', error);
-    return NextResponse.json({ error: 'Failed to update bin', details: (error as Error).message }, { status: 500 });
+    if (error.code === '23505') { 
+        return NextResponse.json({ error: 'Failed to update bin. Location might already exist for another bin.', details: error.message }, { status: 409 });
+    }
+    return NextResponse.json({ error: 'Failed to update bin', details: error.message }, { status: 500 });
   }
 }
 
+// DELETE a bin
 export async function DELETE(request: NextRequest) {
   try {
-    const { BinID } = await request.json();
+    const { BinID } = await request.json(); // Assuming BinID is passed in the body
+
     if (!BinID) {
-      return NextResponse.json({ error: 'BinID is required for deletion.' }, { status: 400 });
+      return NextResponse.json({ error: 'BinID (or your primary key) is required for deletion.' }, { status: 400 });
     }
 
-    const pool = await getConnection();
-    const result = await pool.request()
-      .input('BinID', BinID)
-      .query('DELETE FROM [db_kutip].[dbo].[Bins] OUTPUT DELETED.* WHERE [BinID] = @BinID');
+    const { data, error } = await supabase
+      .from('bins')
+      .delete()
+      .eq('id', BinID) // Assuming 'id' is the primary key
+      .select()       // Optionally select the deleted row to confirm
+      .single();      // Expect a single record or null if not found
 
-    if (result.recordset.length === 0) {
-      return NextResponse.json({ error: 'Bin not found.' }, { status: 404 });
+    if (error) {
+        // Check for foreign key violation if bins are referenced elsewhere
+        if (error.code === '23503') { // PostgreSQL foreign key violation
+            return NextResponse.json({ error: 'Failed to delete bin. It might be referenced by other records (e.g., assignments).', details: error.message }, { status: 409 });
+        }
+        throw error;
+    }
+    
+    if (!data) {
+        return NextResponse.json({ error: 'Bin not found.' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Bin deleted successfully', deletedBin: result.recordset[0] });
-  } catch (error) {
+    return NextResponse.json({ message: 'Bin deleted successfully', deletedBin: data });
+  } catch (error: any) {
     console.error('DELETE /api/bins error:', error);
-    return NextResponse.json({ error: 'Failed to delete bin', details: (error as Error).message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete bin', details: error.message }, { status: 500 });
   }
 }
