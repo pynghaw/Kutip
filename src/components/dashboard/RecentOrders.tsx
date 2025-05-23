@@ -1,3 +1,5 @@
+// RecentTrucks.tsx
+
 import {
   Table,
   TableBody,

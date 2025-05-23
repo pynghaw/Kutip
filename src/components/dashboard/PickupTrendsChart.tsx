@@ -28,7 +28,16 @@ export default function PickupTrendsChart() {
         const res = await fetch("/api/dashboard/pickup-trends");
         const data: PickupTrend[] = await res.json();  // ✅ Use the type here
 
-      setDates(data.map((item) => item.date));
+        setDates(
+          data.map((item) => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short", // e.g. Jan, Feb, Mar
+            });
+          })
+        );
+        
       setPickupData(data.map((item) => item.count));
       } catch (err) {
         console.error("Failed to fetch pickup trends", err);
@@ -70,10 +79,7 @@ export default function PickupTrendsChart() {
       position: "top",
       horizontalAlign: "left",
       fontFamily: "Outfit",
-    },
-    yaxis: {
-      title: { text: "Pickups" },
-    },
+    },    
     grid: {
       yaxis: { lines: { show: true } },
     },
