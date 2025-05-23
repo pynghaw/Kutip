@@ -2,14 +2,20 @@
 import React, { useEffect, useState } from "react";
 
 type TruckAssignment = {
-  AssignmentID: number;
-  TruckID: number;
-  DriverName: string;
-  PlateNo: string;
-  BinLocation: string;
-  ScheduledTime: string;
-  Status: string;
+  id: number;
+  scheduled_time: string;
+  status: string;
+  trucks: {
+    id: number;
+    plate_no: string;
+    driver_name: string;
+  } | null;
+  bins: {
+    id: number;
+    label: string;
+  } | null;
 };
+
 
 export default function TruckSchedule() {
   const [assignments, setAssignments] = useState<TruckAssignment[]>([]);
@@ -18,6 +24,11 @@ export default function TruckSchedule() {
     const fetchSchedule = async () => {
       try {
         const res = await fetch("/api/dashboard/schedule");
+        if (!res.ok) { // Add basic error handling for the fetch response
+          console.error("Failed to fetch schedule, status:", res.status);
+          // Optionally set an error state to display to the user
+          return;
+        }
         const data: TruckAssignment[] = await res.json();
         setAssignments(data);
       } catch (err) {
@@ -40,7 +51,7 @@ export default function TruckSchedule() {
             <tr className="text-left text-gray-500 dark:text-gray-400">
               <th className="px-4 py-2">Truck</th>
               <th className="px-4 py-2">Driver</th>
-              <th className="px-4 py-2">Bin Location</th>
+              <th className="px-4 py-2">Bin Location</th> 
               <th className="px-4 py-2">Scheduled Time</th>
               <th className="px-4 py-2">Status</th>
             </tr>
@@ -48,24 +59,31 @@ export default function TruckSchedule() {
           <tbody>
             {assignments.length === 0 ? (
               <tr>
+
                 <td className="px-4 py-3 text-gray-500" colSpan={5}>
                   No truck assignments for today.
                 </td>
+                
               </tr>
             ) : (
               assignments.map((assignment) => (
-                <tr key={assignment.AssignmentID} className="border-t border-gray-200 dark:border-gray-700">
+                // Use the correct camelCase 'assignmentId' for the key
+                <tr key={assignment.id} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">
-                    {assignment.PlateNo}
+                    {/* Use correct camelCase 'plateNo' */}
+                    {assignment.trucks?.plate_no ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {assignment.DriverName}
+                    {/* Use correct camelCase 'driverName' */}
+                    {assignment.trucks?.driver_name ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {assignment.BinLocation}
+                    {/* Use correct camelCase 'binLabel' */}
+                    {assignment.bins?.label ?? "Unknown"}
                   </td>
                   <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                    {new Date(assignment.ScheduledTime).toLocaleTimeString([], {
+                    {/* Use correct camelCase 'scheduledTime' */}
+                    {new Date(assignment.scheduled_time).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -73,14 +91,16 @@ export default function TruckSchedule() {
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                        assignment.Status === "Completed"
+                        // Use correct camelCase 'status'
+                        assignment.status === "Completed"
                           ? "bg-green-100 text-green-800"
-                          : assignment.Status === "In Progress"
+                          : assignment.status === "In Progress"
                           ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
+                          : "bg-gray-100 text-gray-800" // Default for other statuses like "Pending" etc.
                       }`}
                     >
-                      {assignment.Status}
+                      {/* Use correct camelCase 'status' */}
+                      {assignment.status}
                     </span>
                   </td>
                 </tr>

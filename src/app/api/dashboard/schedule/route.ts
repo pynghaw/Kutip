@@ -1,28 +1,71 @@
-// src/app/api/dashboard/schedule/route.ts
-import { getConnection } from "@/lib/db";
+// In your pages/api/dashboard/schedule.ts (or relevant file)
+import { supabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
+
+interface ScheduleItem {
+  id: number;
+  scheduled_time: string;
+  status: string;
+  trucks: {
+    id: number;
+    driver_name: string;
+    plate_no: string;
+  } | null; // Allow null in case the relation fails
+
+  bins: {
+    id: number;
+    label: string;
+  } | null;
+}
+
 
 export async function GET() {
   try {
-    const pool = await getConnection();
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-    const result = await pool.request().query(`
-      SELECT 
-        TA.AssignmentID,
-        T.TruckID, T.DriverName, T.PlateNo,
-        B.Location AS BinLocation,
-        TA.ScheduledTime,
-        TA.Status
-      FROM TruckAssignments TA
-      JOIN Trucks T ON TA.TruckID = T.TruckID
-      JOIN Bins B ON TA.BinID = B.BinID
-      WHERE CAST(TA.ScheduledTime AS DATE) = CAST(GETDATE() AS DATE)
-      ORDER BY TA.ScheduledTime ASC
-    `);
+    const { data, error } = await supabase // Renamed 'error' to 'queryError' for clarity
+      .from("truck_assignments")
+      .select(`
+        id,
+        scheduled_time,
+        status,
+        trucks:truck_id (
+          id,
+          driver_name,
+          plate_no
+        ),
+        bins:bin_id (
+          id,
+          label
+        )
+      `)
+      .gte("scheduled_time", today)
+      .lt("scheduled_time", tomorrow)
+      .order("scheduled_time", { ascending: true });
+    
+    if (!data) {
+      return NextResponse.json({ error: "No data" }, { status: 500 });
+    }
 
-    return NextResponse.json(result.recordset);
+    // *** IMPORTANT: Log the raw data from Supabase ***
+    console.log("Raw data from Supabase:", JSON.stringify(data, null, 2));
+
+    const safeData = data as unknown as ScheduleItem[]; // Type assertion
+
+    const formatted = safeData.map((item) => ({
+      assignmentId: item.id,
+      truckId: item.trucks?.id ?? null,
+      driverName: item.trucks?.driver_name ?? "Unknown",
+      plateNo: item.trucks?.plate_no ?? "Unknown",
+      binLabel: item.bins?.label ?? "Unknown",
+      scheduledTime: item.scheduled_time,
+      status: item.status,
+    }));
+
+    return NextResponse.json(formatted);
   } catch (err) {
-    console.error("Schedule error:", err);
-    return NextResponse.json({ error: "Failed to load schedule" }, { status: 500 });
+    console.error("General schedule error:", err); // Catch other potential errors
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
