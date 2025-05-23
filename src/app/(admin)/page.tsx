@@ -4,11 +4,13 @@ import React from "react";
 import PickupTrendsChart from "@/components/dashboard/PickupTrendsChart";
 import DemographicCard from "@/components/dashboard/DemographicCard";
 import TruckSchedule from "@/components/dashboard/TruckSchedule";
+import StatisticsChart from "@/components/dashboard/StatisticsChart";
+import RecentOrders from "@/components/dashboard/RecentOrders";
 
 export const metadata: Metadata = {
   title:
-    "Next.js E-commerce Dashboard | TailAdmin - Next.js Dashboard Template",
-  description: "This is Next.js Home for TailAdmin Dashboard Template",
+    "Kutip",
+  description: "",
 };
 
 export default function Dashboard() {
@@ -24,9 +26,18 @@ export default function Dashboard() {
       </div>
     
       <div className="col-span-12 xl:col-span-5">
-        <PickupTrendsChart />
+        <PickupTrendsChart />       
+        
       </div>
 
+
+      <div className="col-span-12 xl:col-span-5">              
+        <StatisticsChart/>      
+      </div>
+
+      <div className="col-span-12 xl:col-span-5">       
+        <RecentOrders/>        
+      </div>
 
       <div className="col-span-12 xl:col-span-8">
         <TruckSchedule />

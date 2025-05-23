@@ -1,4 +1,4 @@
-// src/lib/db.ts
+// NO USE
 import sql from 'mssql';
 
 const config: sql.config = {

@@ -1,24 +1,24 @@
 // src/app/api/dashboard/summary/route.ts
-import { getConnection } from "@/lib/db";
+import { supabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const pool = await getConnection();
-
-    const [bins, trucks, pickupsToday] = await Promise.all([
-      pool.request().query("SELECT COUNT(*) AS count FROM Bins"),
-      pool.request().query("SELECT COUNT(*) AS count FROM Trucks"),
-      pool.request().query(`
-        SELECT COUNT(*) AS count FROM Pickups 
-        WHERE CAST(ActualPickupTime AS DATE) = CAST(GETDATE() AS DATE)
-      `),
+    // Fetch all 3 counts in parallel
+    const [bins, trucks, pickups] = await Promise.all([
+      supabase.from("bins").select("id", { count: "exact", head: true }),
+      supabase.from("trucks").select("id", { count: "exact", head: true }),
+      supabase
+        .from("pickups")
+        .select("id", { count: "exact", head: true })
+        .gte("actual_pickup_time", new Date().toISOString().slice(0, 10)) // today's date only
+        .lt("actual_pickup_time", new Date(new Date().getTime() + 86400000).toISOString().slice(0, 10)), // before tomorrow
     ]);
 
     return NextResponse.json({
-      bins: bins.recordset[0].count,
-      trucks: trucks.recordset[0].count,
-      pickupsToday: pickupsToday.recordset[0].count,
+      bins: bins.count ?? 0,
+      trucks: trucks.count ?? 0,
+      pickupsToday: pickups.count ?? 0,
     });
   } catch (err) {
     console.error("Summary error:", err);

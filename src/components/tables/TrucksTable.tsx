@@ -23,25 +23,25 @@ import {
 
 import Badge from "../ui/badge/Badge";
 
-// Define a type for the form data, excluding TruckID for creation
+// Define a type for the form data, excluding id for creation
 interface TruckFormData {
-  PlateNo: string;
-  DriverName: string;
-  CapacityKg: number | string; // Allow string for input field, convert to number on submit
-  IsActive: boolean;
+  plate_no: string;
+  driver_name: string;
+  capacity_kg: number | string; // Allow string for input field, convert to number on submit
+  is_active: boolean;
 }
 
 interface Truck extends TruckFormData {
-  TruckID: number;
-  CreatedAt: string; // Assuming CreatedAt is a string, adjust if it's a Date object
+  id: number; // Changed from TruckID to id
+  created_at: string; // Changed from CreatedAt to created_at
 }
 
 // Initial form state for creating a new truck
 const initialTruckFormData: TruckFormData = {
-  PlateNo: "",
-  DriverName: "",
-  CapacityKg: "", // Initialize as string for the input field
-  IsActive: true,
+  plate_no: "",
+  driver_name: "",
+  capacity_kg: "", // Initialize as string for the input field
+  is_active: true,
 };
 
 export default function TrucksTable() {
@@ -91,8 +91,11 @@ export default function TrucksTable() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          CapacityKg: parseFloat(formData.CapacityKg as string), // Ensure CapacityKg is a number
+          // Send snake_case keys to the API
+          PlateNo: formData.plate_no, 
+          DriverName: formData.driver_name,
+          CapacityKg: parseFloat(formData.capacity_kg as string),
+          IsActive: formData.is_active,
         }),
       });
       if (!response.ok) {
@@ -116,13 +119,16 @@ export default function TrucksTable() {
   const handleUpdateTruck = async () => {
     if (!currentTruck) return;
     try {
-      const response = await fetch('/api/trucks', { // Assuming PUT updates via the same base endpoint
+      const response = await fetch('/api/trucks', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          TruckID: currentTruck.TruckID,
-          ...formData,
-          CapacityKg: parseFloat(formData.CapacityKg as string), // Ensure CapacityKg is a number
+          TruckID: currentTruck.id, // Use id here
+          // Send snake_case keys to the API for properties being updated
+          PlateNo: formData.plate_no,
+          DriverName: formData.driver_name,
+          CapacityKg: parseFloat(formData.capacity_kg as string),
+          IsActive: formData.is_active,
         }),
       });
       if (!response.ok) {
@@ -130,7 +136,7 @@ export default function TrucksTable() {
         throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
       }
       const updatedTruck = await response.json();
-      setTrucksData(trucksData.map(t => t.TruckID === updatedTruck.TruckID ? updatedTruck : t));
+      setTrucksData(trucksData.map(t => t.id === updatedTruck.id ? updatedTruck : t)); // Compare with id
       setIsEditModalOpen(false);
       setCurrentTruck(null);
       setError(null); // Clear previous errors
@@ -145,16 +151,16 @@ export default function TrucksTable() {
 
   const handleDeleteTruck = async (truckId: number) => {
     try {
-      const response = await fetch('/api/trucks', { // Assuming DELETE uses the same base endpoint
+      const response = await fetch('/api/trucks', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ TruckID: truckId }),
+        body: JSON.stringify({ TruckID: truckId }), // API expects TruckID, ensure this matches API
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
       }
-      setTrucksData(trucksData.filter(t => t.TruckID !== truckId));
+      setTrucksData(trucksData.filter(t => t.id !== truckId)); // Filter by id
       setIsDeleteConfirmOpen(false);
       setCurrentTruck(null);
       setError(null); // Clear previous errors
@@ -170,10 +176,10 @@ export default function TrucksTable() {
   const openEditModal = (truck: Truck) => {
     setCurrentTruck(truck);
     setFormData({
-      PlateNo: truck.PlateNo,
-      DriverName: truck.DriverName,
-      CapacityKg: truck.CapacityKg.toString(), // Convert number to string for input field
-      IsActive: truck.IsActive,
+      plate_no: truck.plate_no,
+      driver_name: truck.driver_name,
+      capacity_kg: truck.capacity_kg.toString(),
+      is_active: truck.is_active,
     });
     setIsEditModalOpen(true);
     setError(null); // Clear previous errors when opening modal
@@ -196,28 +202,28 @@ export default function TrucksTable() {
       </DialogHeader>
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="PlateNo" className="text-right">
+          <Label htmlFor="plate_no" className="text-right">
             Plate No
           </Label>
-          <Input id="PlateNo" name="PlateNo" defaultValue={formData.PlateNo} onChange={handleInputChange} className="col-span-3" />
+          <Input id="plate_no" name="plate_no" defaultValue={formData.plate_no} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="DriverName" className="text-right">
+          <Label htmlFor="driver_name" className="text-right">
             Driver Name
           </Label>
-          <Input id="DriverName" name="DriverName" defaultValue={formData.DriverName} onChange={handleInputChange} className="col-span-3" />
+          <Input id="driver_name" name="driver_name" defaultValue={formData.driver_name} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="CapacityKg" className="text-right">
+          <Label htmlFor="capacity_kg" className="text-right">
             Capacity (Kg)
           </Label>
-          <Input id="CapacityKg" name="CapacityKg" type="number" defaultValue={formData.CapacityKg} onChange={handleInputChange} className="col-span-3" />
+          <Input id="capacity_kg" name="capacity_kg" type="number" defaultValue={formData.capacity_kg} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="IsActive" className="text-right">
+          <Label htmlFor="is_active" className="text-right">
             Active
           </Label>
-          <Input id="IsActive" name="IsActive" type="checkbox" checked={formData.IsActive} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
+          <Input id="is_active" name="is_active" type="checkbox" checked={formData.is_active} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
         </div>
       </div>
       <DialogFooter>
@@ -284,13 +290,13 @@ export default function TrucksTable() {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete truck &quot;{currentTruck?.PlateNo}&quot; (ID: {currentTruck?.TruckID})? This action cannot be undone.
+              Are you sure you want to delete truck &quot;{currentTruck?.plate_no}&quot; (ID: {currentTruck?.id})? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {error && isDeleteConfirmOpen && <div className="my-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
           <DialogFooter>
             <Button variant="outline" onClick={() => {setIsDeleteConfirmOpen(false); setError(null); setCurrentTruck(null);}}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { if (currentTruck) handleDeleteTruck(currentTruck.TruckID); else { setIsDeleteConfirmOpen(false); setError(null); } }}>Delete</Button>
+            <Button variant="destructive" onClick={() => { if (currentTruck) handleDeleteTruck(currentTruck.id); else { setIsDeleteConfirmOpen(false); setError(null); } }}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -318,19 +324,19 @@ export default function TrucksTable() {
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {trucksData.map((truck, index) => (
-                    <TableRow key={truck.TruckID}>
+                    <TableRow key={truck.id}> 
                       <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{index + 1}</TableCell>
-                      <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{truck.TruckID}</TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.PlateNo}</TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.DriverName}</TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.CapacityKg}</TableCell>
+                      <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{truck.id}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.plate_no}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.driver_name}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.capacity_kg}</TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        <Badge size="sm" color={truck.IsActive ? "success" : "error"}>
-                          {truck.IsActive ? "Active" : "Inactive"}
+                        <Badge size="sm" color={truck.is_active ? "success" : "error"}>
+                          {truck.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        {new Date(truck.CreatedAt).toLocaleDateString()}
+                        {new Date(truck.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                         <Button variant="outline" size="sm" className="mr-2" onClick={() => openEditModal(truck)}>
