@@ -8,7 +8,11 @@ export async function GET() {
     const [bins, trucks, pickups] = await Promise.all([
       supabase.from("bins").select("bin_id", { count: "exact", head: true }),
       supabase.from("trucks").select("truck_id", { count: "exact", head: true }),
-      supabase.from("pickups").select("pickup_id", { count: "exact", head: true })
+      supabase
+        .from("pickups")
+        .select("pickup_id", { count: "exact", head: true })
+        .gte("actual_pickup_time", new Date().toISOString().slice(0, 10)) // today's date only
+        .lt("actual_pickup_time", new Date(new Date().getTime() + 86400000).toISOString().slice(0, 10)), // before tomorrow
     ]);
 
     return NextResponse.json({

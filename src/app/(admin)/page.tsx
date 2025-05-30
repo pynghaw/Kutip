@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { Summary } from "@/components/dashboard/Summary";
 import React from "react";
-import PickupTrendsChart from "@/components/dashboard/PickupTrendsChart";
-import DemographicCard from "@/components/dashboard/DemographicCard";
 import TruckSchedule from "@/components/dashboard/TruckSchedule";
-import StatisticsChart from "@/components/dashboard/StatisticsChart";
-import RecentOrders from "@/components/dashboard/RecentOrders";
+import { TodayStats } from "@/components/dashboard/TodayStats";
 
 export const metadata: Metadata = {
   title:
@@ -16,30 +13,17 @@ export const metadata: Metadata = {
 export default function Dashboard() {
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
+
       <div className="col-span-12">
-        <Summary />         
+        <Summary />            
       </div>
 
-      <div className="col-span-12 xl:col-span-5">
-        <DemographicCard />        
-        {/* Map */}
-      </div>
-    
-      <div className="col-span-12 xl:col-span-5">
-        <PickupTrendsChart />       
-        
-      </div>
+      Today&apos;s summary 
+      <div className="col-span-12">
+        <TodayStats />
+      </div>  
 
-
-      <div className="col-span-12 xl:col-span-5">              
-        <StatisticsChart/>      
-      </div>
-
-      <div className="col-span-12 xl:col-span-5">       
-        <RecentOrders/>        
-      </div>
-
-      <div className="col-span-12 xl:col-span-8">
+      <div className="col-span-12 xl:col-span-12">
         <TruckSchedule />
       </div>     
 

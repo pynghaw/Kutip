@@ -27,16 +27,16 @@ export async function GET() {
     const { data } = await supabase // Renamed 'error' to 'queryError' for clarity
       .from("truck_assignments")
       .select(`
-        id,
+        assignment_id,
         scheduled_time,
         status,
         trucks:truck_id (
-          id,
+          truck_id,
           driver_name,
           plate_no
         ),
         bins:bin_id (
-          id,
+          bin_id,
           label
         )
       `)
