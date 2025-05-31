@@ -37,6 +37,16 @@ export default function BinMap() {
     bin_plate: "",
   });
 
+  const centerLat = 1.5341;
+  const centerLng = 103.6217;
+
+  const getBinColor = (lat: number, lng: number) => {
+    if (lat > centerLat && lng < centerLng) return "#f43f5e"; // Red - NW
+    if (lat > centerLat && lng >= centerLng) return "#3b82f6"; // Blue - NE
+    if (lat <= centerLat && lng < centerLng) return "#10b981"; // Green - SW
+    return "#eab308"; // Yellow - SE
+  };
+
   const fetchBins = async () => {
     const { data, error } = await supabase.from("bins").select("*");
     if (error) {
@@ -63,7 +73,7 @@ export default function BinMap() {
       map.current = new mapboxgl.Map({
         container: mapContainer.current!,
         style: "mapbox://styles/mapbox/streets-v11",
-        center: [103.6217, 1.5341],
+        center: [centerLng, centerLat],
         zoom: 15,
       });
 
@@ -79,11 +89,22 @@ export default function BinMap() {
     const newMarkers: mapboxgl.Marker[] = [];
 
     bins.forEach((bin) => {
-      const marker = new mapboxgl.Marker({ color: "#f97316" })
-        .setLngLat([bin.longitude, bin.latitude])
-        .setPopup(new mapboxgl.Popup().setText(bin.label))
-        .addTo(map.current!);
+      const color = getBinColor(bin.latitude, bin.longitude);
+      const status = statuses.find((s) => s.status_id == bin.status)?.status || "Unknown";
+       const statusColor = status.toLowerCase() == "active" ? "#10b981" : "#ef4444";
 
+  const popupContent = `
+    <div>
+      <strong>${bin.label}</strong><br/>
+      Status:<span style="color: ${statusColor}; font-weight: bold;"> ${status}</span><br/>
+      Bin Plate: ${bin.bin_plate}
+    </div>
+  `;
+
+  const marker = new mapboxgl.Marker({ color })
+    .setLngLat([bin.longitude, bin.latitude])
+    .setPopup(new mapboxgl.Popup().setHTML(popupContent))
+    .addTo(map.current!);
       marker.getElement().addEventListener("contextmenu", async (e) => {
         e.preventDefault();
         const confirmDelete = confirm(`Delete bin "${bin.label}"?`);
@@ -94,13 +115,24 @@ export default function BinMap() {
             alert("Failed to delete bin.");
           } else {
             alert(`🗑️ Bin "${bin.label}" deleted.`);
-            await fetchBins(); // re-fetch bins and trigger map re-render
+            await fetchBins();
           }
         }
       });
 
       newMarkers.push(marker);
     });
+
+    // Add center marker
+    const centerMarker = new mapboxgl.Marker({
+      color: 	"#6F42C1",
+      scale: 1.5,
+    })
+      .setLngLat([centerLng, centerLat])
+      .setPopup(new mapboxgl.Popup().setText("Bin Collection Center"))
+      .addTo(map.current!);
+
+    newMarkers.push(centerMarker);
 
     setMarkers(newMarkers);
   }, [bins, mapLoaded]);
@@ -146,7 +178,7 @@ export default function BinMap() {
       setShowForm(false);
       setFormData({ label: "", status_id: "", customer_id: "", bin_plate: "" });
       setNewCoords(null);
-      await fetchBins(); // refresh markers
+      await fetchBins();
     }
   };
 
@@ -159,7 +191,7 @@ export default function BinMap() {
         }}
         className="absolute z-10 top-4 left-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
       >
-        ➕ Add Bin
+        + Add Bin
       </button>
 
       <div ref={mapContainer} className="w-full h-full" />
