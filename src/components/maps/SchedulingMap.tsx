@@ -19,9 +19,10 @@ type Bin = {
 
 type Truck = {
   truck_id: number;
-  truck_plate: string;
+  plate_no: string;
   assigned_area: string;
-  driver_name?: string;
+  d_id: number;
+  driver_name: string;
   is_active: boolean; // Use string to match Supabase boolean
 };
 
@@ -30,9 +31,8 @@ type TruckAssignment = {
   truck_id: number;
   bin_id: number;
   scheduled_date: string;
-  status: 'scheduled' | 'in_progress' | 'completed';
-  route_order?: number;
-  route_id: number; // Added route_id to link assignment to route
+  //status: 'scheduled' | 'in_progress' | 'completed';
+  route_id?: number; // Added route_id to link assignment to route
 };
 
 type Route = {
@@ -349,7 +349,7 @@ export default function AutoSchedulingPage() {
         truck_id: truck.truck_id,
         bin_id: binId,
         scheduled_date: date,
-        status: 'scheduled' as const,
+       // status: 'scheduled' as const,
         route_id: index + 1,
       }));
 
@@ -358,7 +358,7 @@ export default function AutoSchedulingPage() {
       // Create route
       const primaryArea = truck.assigned_area;
       const route: Omit<Route, 'route_id'> = {
-        route_name: `${primaryArea} - ${truck.truck_plate} - ${new Date(date).toLocaleDateString()}`,
+        route_name: `${primaryArea} - ${truck.plate_no} - ${new Date(date).toLocaleDateString()}`,
         truck_id: truck.truck_id,
         scheduled_date: date,
         estimated_duration: calculateDuration(truckBins.length),
@@ -422,8 +422,8 @@ export default function AutoSchedulingPage() {
     
     // Sort by route order
     routeBins.sort((a, b) => {
-      const orderA = route.assignments.find(ass => ass.bin_id === a.bin_id)?.route_order || 0;
-      const orderB = route.assignments.find(ass => ass.bin_id === b.bin_id)?.route_order || 0;
+      const orderA = route.assignments.find(ass => ass.bin_id === a.bin_id)?.route_id || 0;
+      const orderB = route.assignments.find(ass => ass.bin_id === b.bin_id)?.route_id || 0;
       return orderA - orderB;
     });
 
@@ -552,7 +552,7 @@ export default function AutoSchedulingPage() {
                       <div className="flex-1">
                         <h4 className="font-medium text-sm">{route.route_name}</h4>
                         <p className="text-xs text-gray-600">
-                          Truck: {truck?.truck_plate} ({truck?.assigned_area})
+                          Truck: {truck?.plate_no} ({truck?.assigned_area})
                         </p>
                         <p className="text-xs text-gray-600">
                           Date: {new Date(route.scheduled_date).toLocaleDateString()}
@@ -636,11 +636,11 @@ export default function AutoSchedulingPage() {
                                 onChange={() => handleTruckSelection(truck.truck_id)}
                                 className="rounded"
                               />
-                              <span className="font-medium text-sm">{truck.truck_plate}</span>
+                              <span className="font-medium text-sm">{truck.plate_no}</span>
                             </div>
                             <p className="text-xs text-gray-600 ml-6">
-                              Area: {truck.assigned_area}
-                              {truck.driver_name && ` | Driver: ${truck.driver_name}`}
+                              ID: {truck.truck_id} 
+                        
                             </p>
                           </div>
                         </div>
