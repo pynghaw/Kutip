@@ -992,7 +992,7 @@ return (
                             <span className="font-medium text-sm">{truck.plate_no}</span>
                           </div>
                           <p className="text-xs text-gray-600 ml-6">
-                            ID: {truck.truck_id} | Area: {truck.assigned_area} | Driver: {truck.driver_name}
+                            ID: {truck.truck_id} 
                           </p>
                         </div>
                       </div>
