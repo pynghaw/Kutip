@@ -166,6 +166,19 @@ export default function Map() {
     moveSlowly();
   }
 
+  function clearRoute() {
+    if (!map.current) return;
+
+    if (map.current.getLayer("route")) {
+      map.current.removeLayer("route");
+    }
+    if (map.current.getSource("route")) {
+      map.current.removeSource("route");
+    }
+
+    // Optional: If you saved animatedTruckMarker to state or ref, remove it like this:
+    // animatedTruckMarker.remove();
+  }
 
   useEffect(() => {
     fetchBins();
@@ -306,6 +319,13 @@ export default function Map() {
         >
         Simulate Truck Move
         </button>
+                <button
+          onClick={clearRoute}
+          className="px-3 py-2 bg-red-500 text-white rounded-md text-sm"
+        >
+          Clear Route
+        </button>
+
         
         {/* Area Filter Dropdown */}
         <select
