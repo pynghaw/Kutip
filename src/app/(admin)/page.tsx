@@ -3,6 +3,7 @@ import { Summary } from "@/components/dashboard/Summary";
 import React from "react";
 import TruckSchedule from "@/components/dashboard/TruckSchedule";
 import { TodayStats } from "@/components/dashboard/TodayStats";
+import Map from "@/components/dashboard/Map";
 
 export const metadata: Metadata = {
   title:
@@ -22,10 +23,14 @@ export default function Dashboard() {
       <div className="col-span-12">
         <TodayStats />
       </div>  
+      <div className="col-span-12 xl:col-span-12">
+        <Map />
+      </div>   
 
       <div className="col-span-12 xl:col-span-12">
         <TruckSchedule />
       </div>     
+
 
     </div>
   );
