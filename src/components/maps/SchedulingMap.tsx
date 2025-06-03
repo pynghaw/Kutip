@@ -829,19 +829,17 @@ return (
         >
           {isLoading ? '🔄 Processing...' : '🤖 Auto Schedule'}
         </button>
-        
-       
       </div>
     </div>
 
-    {/* Filters */}
-    <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-lg">
+    {/* Enhanced Filters Section */}
+    <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg">
       <div className="flex gap-2 items-center">
-        <label className="text-sm font-medium">Filter by Area:</label>
+        <label className="text-sm font-medium text-gray-700">Filter by Area:</label>
         <select
           value={selectedArea}
           onChange={(e) => setSelectedArea(e.target.value)}
-          className="border rounded px-3 py-1 text-sm"
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">All Areas</option>
           {areas.map(area => (
@@ -849,17 +847,42 @@ return (
           ))}
         </select>
       </div>
+      
       <div className="flex gap-2 items-center">
-        <label className="text-sm font-medium">View Date:</label>
-        <input
-          type="date"
-          value={schedulingDate}
-          onChange={(e) => setSchedulingDate(e.target.value)}
-          className="border rounded px-3 py-1 text-sm"
-        />
+        <label className="text-sm font-medium text-gray-700">Schedule Date:</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={schedulingDate}
+            onChange={(e) => setSchedulingDate(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+          />
+          <button
+            onClick={() => setSchedulingDate(new Date().toISOString().split('T')[0])}
+            className="px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+            title="Set to today"
+          >
+            Today
+          </button>
+        </div>
       </div>
-      <div className="text-sm text-gray-600">
-        Showing: {selectedArea ? bins.filter(b => b.area === selectedArea).length : bins.length} bins
+
+      <div className="flex items-center gap-4 text-sm text-gray-600 bg-white px-3 py-2 rounded-md border">
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          <span>Showing: {selectedArea ? bins.filter(b => b.area === selectedArea).length : bins.length} bins</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+          <span>Date: {new Date(schedulingDate).toLocaleDateString()}</span>
+        </div>
+        {schedulingDate === new Date().toISOString().split('T')[0] && (
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+            <span className="text-orange-600 font-medium">Today</span>
+          </div>
+        )}
       </div>
     </div>
 
@@ -871,7 +894,12 @@ return (
 
       {/* Routes & Assignments List */}
       <div className="bg-gray-50 rounded-xl p-4 overflow-y-auto">
-        <h3 className="text-lg font-semibold mb-3">Scheduled Routes</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-semibold">Scheduled Routes</h3>
+          <span className="text-xs text-gray-500">
+            {new Date(schedulingDate).toLocaleDateString()}
+          </span>
+        </div>
         <div className="space-y-2">
           {routes
             .filter(route => !schedulingDate || route.scheduled_date.startsWith(schedulingDate))
@@ -880,7 +908,7 @@ return (
               return (
                 <div
                   key={route.route_id}
-                  className={`p-3 bg-white rounded-lg border cursor-pointer hover:shadow-md ${
+                  className={`p-3 bg-white rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
                     activeRoute?.route_id === route.route_id ? 'ring-2 ring-blue-500' : ''
                   }`}
                   onClick={() => showRouteOnMap(route)}
@@ -912,17 +940,49 @@ return (
                 </div>
               );
             })}
+          {routes.filter(route => !schedulingDate || route.scheduled_date.startsWith(schedulingDate)).length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-sm">No routes scheduled for this date</p>
+              <p className="text-xs mt-1">Click "Auto Schedule" to create routes</p>
+            </div>
+          )}
         </div>
 
         {/* Statistics */}
         <div className="mt-4 pt-4 border-t">
-          <h4 className="text-sm font-semibold mb-2">Statistics</h4>
+          <h4 className="text-sm font-semibold mb-2">Statistics for {new Date(schedulingDate).toLocaleDateString()}</h4>
           <div className="space-y-1 text-xs text-gray-600">
-            <div>Total Bins: {bins.length}</div>
-            <div>Assigned Bins: {assignments.filter(a => a.scheduled_date === schedulingDate).length}</div>
-            <div>Unassigned Bins: {bins.length - assignments.filter(a => a.scheduled_date === schedulingDate).length}</div>
-            <div>Active Trucks: {availableTrucks.length}</div>
-            <div>Total Routes: {routes.filter(r => r.scheduled_date === schedulingDate).length}</div>
+            <div className="flex justify-between">
+              <span>Total Bins:</span>
+              <span className="font-medium">{bins.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Assigned Bins:</span>
+              <span className="font-medium text-green-600">
+                {assignments.filter(a => a.scheduled_date === schedulingDate).length}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Unassigned Bins:</span>
+              <span className={`font-medium ${
+                bins.length - assignments.filter(a => a.scheduled_date === schedulingDate).length > 0 
+                  ? 'text-orange-600' 
+                  : 'text-green-600'
+              }`}>
+                {bins.length - assignments.filter(a => a.scheduled_date === schedulingDate).length}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Active Trucks:</span>
+              <span className="font-medium">{availableTrucks.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Routes:</span>
+              <span className="font-medium">{routes.filter(r => r.scheduled_date === schedulingDate).length}</span>
+            </div>
           </div>
         </div>
 
@@ -952,15 +1012,31 @@ return (
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Schedule Date</label>
-              <input
-                type="date"
-                value={schedulingDate}
-                onChange={(e) => setSchedulingDate(e.target.value)}
-                className="w-full border rounded-md px-3 py-2"
-                required
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">Defaults to today's date</p>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={schedulingDate}
+                  onChange={(e) => setSchedulingDate(e.target.value)}
+                  className="flex-1 border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                  disabled={isLoading}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSchedulingDate(new Date().toISOString().split('T')[0])}
+                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm"
+                  disabled={isLoading}
+                >
+                  Today
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {schedulingDate === new Date().toISOString().split('T')[0] 
+                  ? "✅ Set to today's date" 
+                  : `Selected: ${new Date(schedulingDate).toLocaleDateString()}`
+                }
+              </p>
             </div>
 
             <div>
@@ -992,7 +1068,7 @@ return (
                             <span className="font-medium text-sm">{truck.plate_no}</span>
                           </div>
                           <p className="text-xs text-gray-600 ml-6">
-                            ID: {truck.truck_id} 
+                            ID: {truck.truck_id} | Area: {truck.assigned_area}
                           </p>
                         </div>
                       </div>
@@ -1038,7 +1114,7 @@ return (
               {selectedTrucks.length > 0 && (
                 <div className="mt-2 p-2 bg-white rounded border">
                   <p className="font-medium text-green-700">
-                    📊 Estimated Distribution:
+                    📊 Estimated Distribution for {new Date(schedulingDate).toLocaleDateString()}:
                   </p>
                   <p className="text-xs mt-1">
                     • Unassigned bins: {bins.filter(bin => 
