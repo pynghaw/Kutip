@@ -31,7 +31,8 @@ type TruckAssignment = {
   truck_id: number;
   bin_id: number;
   scheduled_date: string;
-  schedule_id?: number; // Added foreign key to schedule
+  schedule_id?: number;
+  route_id?: number; // Added route_id foreign key
 };
 
 type Route = {
@@ -42,7 +43,7 @@ type Route = {
   estimated_duration: number;
   status: 'pending' | 'in_progress' | 'completed';
   total_bins?: number;
-  schedule_id?: number; // Added foreign key to schedule
+  schedule_id?: number;
 };
 
 type Schedule = {
@@ -211,19 +212,29 @@ export default function AutoSchedulingPage() {
     }
   };
 
-  // Update truck_assignments table to include schedule_id foreign key
+  // Update truck_assignments table to include both schedule_id and route_id foreign keys
   const updateTruckAssignmentsTable = async (): Promise<boolean> => {
     try {
-      const { error } = await supabase.rpc('exec_sql', { 
+      // Add schedule_id if it doesn't exist
+      const { error: scheduleError } = await supabase.rpc('exec_sql', { 
         sql: `ALTER TABLE truck_assignments ADD COLUMN IF NOT EXISTS schedule_id INTEGER REFERENCES schedules(schedule_id);`
       });
       
-      if (error) {
-        console.error('Error adding schedule_id to truck_assignments:', error);
+      if (scheduleError) {
+        console.error('Error adding schedule_id to truck_assignments:', scheduleError);
+      }
+
+      // Add route_id if it doesn't exist
+      const { error: routeError } = await supabase.rpc('exec_sql', { 
+        sql: `ALTER TABLE truck_assignments ADD COLUMN IF NOT EXISTS route_id INTEGER REFERENCES routes(route_id);`
+      });
+      
+      if (routeError) {
+        console.error('Error adding route_id to truck_assignments:', routeError);
         return false;
       }
       
-      console.log('truck_assignments table updated with schedule_id');
+      console.log('truck_assignments table updated with schedule_id and route_id');
       return true;
     } catch (error) {
       console.error('Exception updating truck_assignments table:', error);
@@ -444,7 +455,7 @@ export default function AutoSchedulingPage() {
     });
   };
 
-  // FIXED: Updated automatic scheduling algorithm with proper foreign key relationships
+  // FIXED: Updated automatic scheduling algorithm with proper route_id connection
   const performAutoScheduling = async (date: string) => {
     if (!date) {
       alert("Please select a scheduling date");
@@ -602,8 +613,8 @@ export default function AutoSchedulingPage() {
         throw new Error('Failed to get schedule ID');
       }
 
-      // Step 2: Generate assignments and routes with schedule_id
-      console.log('📋 Generating assignments and routes...');
+      // Step 2: Create routes FIRST, then assignments with route_id
+      console.log('📋 Creating routes first...');
       
       // Group bins by area for better distribution
       const binsByArea = unassignedBins.reduce((acc, bin) => {
@@ -613,13 +624,17 @@ export default function AutoSchedulingPage() {
         return acc;
       }, {} as Record<string, Bin[]>);
 
-      const newAssignments: Omit<TruckAssignment, 'assignment_id'>[] = [];
-      const newRoutes: Omit<Route, 'route_id'>[] = [];
-
       const totalBins = unassignedBins.length;
       const binsPerTruck = Math.ceil(totalBins / selectedTruckObjects.length);
 
-      // Distribute bins among trucks
+      // Prepare route data and assignments
+      const routeCreationData: Array<{
+        route: Omit<Route, 'route_id'>;
+        truckBins: Bin[];
+        truck: Truck;
+      }> = [];
+
+      // Distribute bins among trucks and prepare route data
       for (let i = 0; i < selectedTruckObjects.length; i++) {
         const truck = selectedTruckObjects[i];
         
@@ -630,26 +645,15 @@ export default function AutoSchedulingPage() {
           .flatMap(([, bins]) => bins);
 
         const availableBins = [...truckAreaBins, ...otherAreaBins]
-          .filter(bin => !newAssignments.some(a => a.bin_id === bin.bin_id));
+          .filter(bin => !routeCreationData.some(rcd => 
+            rcd.truckBins.some(tb => tb.bin_id === bin.bin_id)
+          ));
 
         const truckBins = availableBins.slice(0, Math.min(binsPerTruck, availableBins.length));
 
         if (truckBins.length === 0) continue;
 
-        // Optimize route for this truck
-        const optimizedBinIds = optimizeRoute(truckBins.map(b => b.bin_id));
-        
-        // Create assignments with schedule_id
-        const truckAssignments = optimizedBinIds.map((binId) => ({
-          truck_id: truck.truck_id,
-          bin_id: binId,
-          scheduled_date: date,
-          schedule_id: scheduleId, // Add foreign key reference
-        }));
-
-        newAssignments.push(...truckAssignments);
-
-        // Create route record with schedule_id
+        // Create route record
         const route: Omit<Route, 'route_id'> = {
           route_name: `${truck.assigned_area} - ${truck.plate_no} - ${new Date(date).toLocaleDateString()}`,
           truck_id: truck.truck_id,
@@ -657,16 +661,74 @@ export default function AutoSchedulingPage() {
           estimated_duration: calculateDuration(truckBins.length),
           status: 'pending',
           total_bins: truckBins.length,
-          schedule_id: scheduleId, // Add foreign key reference
+          schedule_id: scheduleId,
         };
 
-        newRoutes.push(route);
+        routeCreationData.push({ route, truckBins, truck });
       }
 
-      console.log(`📋 Generated ${newAssignments.length} assignments and ${newRoutes.length} routes`);
+      // Step 3: Insert routes and get their IDs
+      console.log('💾 Creating routes...');
+      const createdRoutes: Route[] = [];
+      let routesCreated = false;
 
-      // Step 3: Insert assignments
-      console.log('💾 Creating truck assignments...');
+      if (routesTableCreated && routeCreationData.length > 0) {
+        try {
+          const routesToInsert = routeCreationData.map(rcd => rcd.route);
+          const { data: routeData, error: routeError } = await supabase
+            .from("routes")
+            .insert(routesToInsert)
+            .select('*');
+
+          if (routeError) {
+            console.error("❌ Route creation error:", routeError);
+            throw new Error(`Failed to create routes: ${routeError.message}`);
+          } else {
+            createdRoutes.push(...(routeData || []));
+            routesCreated = true;
+            console.log("✅ Routes created successfully:", createdRoutes.length);
+          }
+        } catch (error) {
+          console.error("❌ Exception creating routes:", error);
+          throw new Error('Failed to create routes');
+        }
+      } else {
+        throw new Error('Routes table not available or no route data');
+      }
+
+      // Step 4: Create assignments with route_id references
+      console.log('💾 Creating truck assignments with route references...');
+      const newAssignments: Omit<TruckAssignment, 'assignment_id'>[] = [];
+
+      for (let i = 0; i < routeCreationData.length; i++) {
+        const { truckBins, truck } = routeCreationData[i];
+        const correspondingRoute = createdRoutes.find(r => 
+          r.truck_id === truck.truck_id && 
+          r.scheduled_date === date && 
+          r.schedule_id === scheduleId
+        );
+
+        if (!correspondingRoute) {
+          console.error(`❌ Could not find corresponding route for truck ${truck.truck_id}`);
+          continue;
+        }
+
+        // Optimize route for this truck
+        const optimizedBinIds = optimizeRoute(truckBins.map(b => b.bin_id));
+        
+        // Create assignments with both schedule_id and route_id
+        const truckAssignments = optimizedBinIds.map((binId) => ({
+          truck_id: truck.truck_id,
+          bin_id: binId,
+          scheduled_date: date,
+          schedule_id: scheduleId,
+          route_id: correspondingRoute.route_id!, // Add route_id reference
+        }));
+
+        newAssignments.push(...truckAssignments);
+      }
+
+      // Insert assignments with route references
       const { error: assignmentError } = await supabase
         .from("truck_assignments")
         .insert(newAssignments);
@@ -676,31 +738,7 @@ export default function AutoSchedulingPage() {
         throw new Error(`Failed to create assignments: ${assignmentError.message}`);
       }
 
-      console.log("✅ Assignments created successfully with schedule_id:", scheduleId);
-
-      // Step 4: Insert routes
-      let routesCreated = false;
-      if (routesTableCreated) {
-        console.log('💾 Creating routes...');
-        try {
-          const { error: routeError } = await supabase
-            .from("routes")
-            .insert(newRoutes);
-
-          if (routeError) {
-            console.error("❌ Route creation error:", routeError);
-            alert(`Warning: Routes could not be created: ${routeError.message}`);
-          } else {
-            console.log("✅ Routes created successfully with schedule_id:", scheduleId);
-            routesCreated = true;
-          }
-        } catch (error) {
-          console.error("❌ Exception creating routes:", error);
-          alert(`Warning: Routes could not be created due to an exception`);
-        }
-      } else {
-        console.warn("⚠️ Skipping route creation - table not available");
-      }
+      console.log("✅ Assignments created successfully with schedule_id and route_id:", newAssignments.length);
 
       // Success message
       const remainingBins = totalBins - newAssignments.length;
@@ -709,12 +747,9 @@ export default function AutoSchedulingPage() {
       successMessage += `• Schedule ID: ${scheduleId} ✅\n`;
       successMessage += `• ${newAssignments.length} bins assigned ✅\n`;
       successMessage += `• ${selectedTruckObjects.length} trucks scheduled ✅\n`;
-      successMessage += `• ${newRoutes.length} routes ${routesCreated ? 'created ✅' : 'planned ⚠️'}\n`;
+      successMessage += `• ${createdRoutes.length} routes created ✅\n`;
       successMessage += `• ${remainingBins} bins remaining unassigned\n`;
-
-      if (!routesCreated) {
-        successMessage += `\n⚠️ Routes table unavailable, but assignments were linked to schedule.`;
-      }
+      successMessage += `• All assignments linked to routes ✅\n`;
 
       alert(successMessage);
       

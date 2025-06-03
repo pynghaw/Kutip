@@ -31,12 +31,16 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
-  },
-  {
-    icon: <GridIcon />,
-    name: "Map",
-    path: "/map",
-  },         
+  }, 
+   {
+    name: "Map/Schduling",
+    icon: <CalenderIcon />,
+    subItems: [
+      { name: "Map/Add bin", path: "/map", pro: false },
+      { name: "Create Schedule", path: "/scheduling", pro: false },
+       { name: "Manage Schedule", path: "/manageschedule", pro: false },
+    ],
+  },     
   {
     name: "Tables",
     icon: <TableIcon />,
