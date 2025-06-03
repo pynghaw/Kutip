@@ -1,7 +1,7 @@
 'use client';
 
 import Button from "../ui/button/Button";
-import Input from "../form/input/InputField";
+import Input from "../form/input/InputField"; // Input might still be used for PlateNo
 import {
   Dialog,
   DialogContent,
@@ -23,11 +23,19 @@ import {
 
 import Badge from "../ui/badge/Badge";
 
-// Define a type for the form data, excluding truck_id for creation
+// --- NEW INTERFACE FOR DRIVER DATA ---
+interface Driver {
+  d_id: number;
+  d_name: string;
+}
+// --- END NEW INTERFACE ---
+
+
+// Define a type for the form data, EXCLUDING is_active
 interface TruckFormData {
   plate_no: string;
-  d_id: number | string; // Changed from driver_name to d_id, allow string for input
-  is_active: boolean;
+  d_id: number | string; // Changed from driver_name to d_id, allow string for input (empty state)
+  // is_active is removed from form data
 }
 
 interface Truck {
@@ -35,15 +43,15 @@ interface Truck {
   plate_no: string;
   d_id: number; // The foreign key to the drivers table
   DriverName: string | null; // The flattened driver name from the API join
-  is_active: boolean;
+  is_active: boolean; // KEEP this here if you still display it in the table
   created_at: string;
 }
 
 // Initial form state for creating a new truck
 const initialTruckFormData: TruckFormData = {
   plate_no: "",
-  d_id: "", // Initialize as string for the input field
-  is_active: true,
+  d_id: "", // Initialize as empty string for the select input
+  // is_active is removed from initial state
 };
 
 export default function TrucksTable() {
@@ -53,18 +61,29 @@ export default function TrucksTable() {
   const [currentTruck, setCurrentTruck] = useState<Truck | null>(null); // For editing or deleting
   const [formData, setFormData] = useState<TruckFormData>(initialTruckFormData);
   const [trucksData, setTrucksData] = useState<Truck[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]); // --- NEW STATE FOR DRIVERS ---
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchDataAndDrivers() {
       try {
-        const response = await fetch('/api/trucks');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // --- FETCH TRUCKS DATA ---
+        const trucksResponse = await fetch('/api/trucks');
+        if (!trucksResponse.ok) {
+          throw new Error(`HTTP error fetching trucks! status: ${trucksResponse.status}`);
         }
-        const data: Truck[] = await response.json(); // Cast to Truck[]
-        setTrucksData(data);
+        const trucksData: Truck[] = await trucksResponse.json();
+        setTrucksData(trucksData);
+
+        // --- FETCH DRIVERS DATA ---
+        const driversResponse = await fetch('/api/drivers'); // Call the new drivers API
+        if (!driversResponse.ok) {
+          throw new Error(`HTTP error fetching drivers! status: ${driversResponse.status}`);
+        }
+        const driversData: Driver[] = await driversResponse.json();
+        setDrivers(driversData);
+
       } catch (e) {
         if (e instanceof Error) {
           setError(e.message);
@@ -76,16 +95,26 @@ export default function TrucksTable() {
       }
     }
 
-    fetchData();
+    fetchDataAndDrivers();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target; // Removed type and checked as is_active is gone
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }));
   };
+
+  // --- NEW: Handle Change for Select (Dropdown) ---
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value, // Value will be the d_id (string)
+    }));
+  };
+  // --- END NEW ---
 
   const handleCreateTruck = async () => {
     try {
@@ -94,8 +123,8 @@ export default function TrucksTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           PlateNo: formData.plate_no,
-          DriverID: parseInt(formData.d_id as string), // Send DriverID
-          IsActive: formData.is_active,
+          DriverID: parseInt(formData.d_id as string), // Ensure it's parsed to a number
+          // IsActive is removed from here
         }),
       });
       if (!response.ok) {
@@ -128,8 +157,8 @@ export default function TrucksTable() {
         body: JSON.stringify({
           TruckID: currentTruck.truck_id, // Use truck_id here
           PlateNo: formData.plate_no,
-          DriverID: parseInt(formData.d_id as string), // Send DriverID for update
-          IsActive: formData.is_active,
+          DriverID: parseInt(formData.d_id as string), // Ensure it's parsed to a number
+          // IsActive is removed from here
         }),
       });
       if (!response.ok) {
@@ -181,8 +210,8 @@ export default function TrucksTable() {
     setCurrentTruck(truck);
     setFormData({
       plate_no: truck.plate_no,
-      d_id: truck.d_id.toString(), // Set d_id in form data
-      is_active: truck.is_active,
+      d_id: truck.d_id.toString(), // Convert d_id to string for the select's value
+      // is_active is removed from here
     });
     setIsEditModalOpen(true);
     setError(null); // Clear previous errors when opening modal
@@ -211,16 +240,35 @@ export default function TrucksTable() {
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
           <Label htmlFor="d_id" className="text-right">
-            Driver ID
+            Driver Name
           </Label>
-          <Input id="d_id" name="d_id" type="number" defaultValue={formData.d_id} onChange={handleInputChange} className="col-span-3" />
+          {/* --- MODIFIED: Replaced Input with Select for Driver ID --- */}
+          <select
+            id="d_id"
+            name="d_id"
+            value={formData.d_id} // Controlled component: value from state
+            onChange={handleSelectChange} // Use the new handleSelectChange
+            className="col-span-3 border rounded p-2"
+            required // Make selection mandatory
+          >
+            <option value="" disabled>Select a driver</option> {/* Placeholder/default option */}
+            {drivers.map((driver) => (
+              <option key={driver.d_id} value={driver.d_id}>
+                {driver.d_name}
+              </option>
+            ))}
+          </select>
+          {/* --- END MODIFIED --- */}
         </div>
+        {/* --- REMOVED: IsActive Checkbox --- */}
+        {/*
         <div className="grid grid-cols-4 items-center gap-4">
           <Label htmlFor="is_active" className="text-right">
             Active
           </Label>
           <Input id="is_active" name="is_active" type="checkbox" checked={formData.is_active} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
         </div>
+        */}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={closeHandler}>Cancel</Button>
@@ -233,9 +281,7 @@ export default function TrucksTable() {
     return <div className="p-4 text-center">Loading truck data...</div>;
   }
 
-  // Display error message prominently if it exists, affecting the whole component
   if (error && !isCreateModalOpen && !isEditModalOpen && !isDeleteConfirmOpen) {
-    // Only show general page error if no modal is open (modals can have their own error context if needed)
     return <div className="p-4 text-center text-red-500">Error: {error}</div>;
   }
 
@@ -253,6 +299,7 @@ export default function TrucksTable() {
             <Button onClick={() => { setFormData(initialTruckFormData); setError(null); setIsCreateModalOpen(true); }}>Create New Truck</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
+            {/* Show error inside modal if it's open */}
             {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
             {renderTruckForm(handleCreateTruck, () => { setIsCreateModalOpen(false); setError(null); setFormData(initialTruckFormData); }, false)}
           </DialogContent>
@@ -268,6 +315,7 @@ export default function TrucksTable() {
         }
       }}>
         <DialogContent className="sm:max-w-[425px]">
+          {/* Show error inside modal if it's open */}
           {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
           {currentTruck && renderTruckForm(handleUpdateTruck, () => { setIsEditModalOpen(false); setError(null); setCurrentTruck(null); }, true)}
         </DialogContent>
@@ -303,15 +351,12 @@ export default function TrucksTable() {
       {trucksData.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
           <div className="max-w-full overflow-x-auto">
-            {/* Adjusted min-width for the absence of Truck ID column */}
             <div className="min-w-[900px]">
               <Table>
                 <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                   <TableRow>
                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">#</TableCell>
-                    {/* TRUCK ID COLUMN HEADER REMOVED */}
                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Plate No</TableCell>
-                    {/* DRIVER NAME COLUMN: This is where the Driver Name header is defined */}
                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Driver Name</TableCell>
                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Created At</TableCell>
@@ -322,12 +367,8 @@ export default function TrucksTable() {
                   {trucksData.map((truck, index) => (
                     <TableRow key={truck.truck_id}>
                       <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{index + 1}</TableCell>
-                      {/* TRUCK ID CELL REMOVED */}
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.plate_no}</TableCell>
-                      {/* DRIVER NAME CELL: This displays the truck.DriverName, using 'N/A' if null */}
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        {/* You can remove this console.log after confirming it works */}
-                        {console.log(`Truck ID: ${truck.truck_id}, DriverName: ${truck.DriverName}`)}
                         {truck.DriverName || 'N/A'}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
@@ -350,7 +391,7 @@ export default function TrucksTable() {
                   ))}
                   {trucksData.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400"> {/* Adjusted colSpan to 6 (was 7) */}
+                      <TableCell colSpan={6} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
                         No trucks found.
                       </TableCell>
                     </TableRow>
