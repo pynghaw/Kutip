@@ -1,24 +1,47 @@
-// src/app/api/dashboard/summary/route.ts
 import { supabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  try {
-    // Fetch all 3 counts in parallel
-    const [bins, trucks, pickups] = await Promise.all([
+  try {    
+    const [bins, trucks, pickupsToday] = await Promise.all([
       supabase.from("bins").select("bin_id", { count: "exact", head: true }),
       supabase.from("trucks").select("truck_id", { count: "exact", head: true }),
       supabase
         .from("pickups")
-        .select("pickup_id", { count: "exact", head: true })
-        .gte("actual_pickup_time", new Date().toISOString().slice(0, 10)) // today's date only
-        .lt("actual_pickup_time", new Date(new Date().getTime() + 86400000).toISOString().slice(0, 10)), // before tomorrow
+        .select(`
+          pickup_id,
+          actual_pickup_time,
+          p_status,
+          pickup_status!pickups_p_status_fkey(p_status)
+        `)        
     ]);
+
+    // Debug: Log what pickups were found
+    console.log("Pickups found:", pickupsToday.data);
+
+    // Count successful and missed pickups
+    let successful = 0;
+    let missed = 0;
+    
+    // Count based on p_status values (assuming you know what they mean)
+    if (pickupsToday.data) {
+      for (const row of pickupsToday.data) {
+        const statusId = row.p_status;        
+       
+        if (statusId === 1) { // Replace with correct ID for successful
+          successful++;
+        } else if (statusId === 2) { // Replace with correct ID for missed
+          missed++;
+        }
+      }
+    }
 
     return NextResponse.json({
       bins: bins.count ?? 0,
       trucks: trucks.count ?? 0,
-      pickupsToday: pickups.count ?? 0,
+      pickupsToday: pickupsToday.data?.length ?? 0,
+      successfulPickups: successful,
+      missedPickups: missed,
     });
   } catch (err) {
     console.error("Summary error:", err);

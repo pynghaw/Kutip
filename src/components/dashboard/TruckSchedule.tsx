@@ -56,7 +56,7 @@ export default function TruckSchedule() {
                 </td>
               </tr>
             ) : (
-              assignments.slice(0, 5).map((assignment, index) => (
+              assignments.slice(0, 6).map((assignment, index) => (
                 <tr key={index} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">
                     {assignment.plateNo}

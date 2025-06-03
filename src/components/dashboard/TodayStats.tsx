@@ -1,10 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Badge from "../ui/badge/Badge";
-import { ArrowUpIcon, BoxIconLine, GroupIcon } from "@/icons";
+import dynamic from "next/dynamic";
+import { ApexOptions } from "apexcharts";
+
+// Dynamically import ApexChart to avoid SSR issues
+const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export const TodayStats = () => {
-  const [metrics, setMetrics] = useState({ bins: 0, trucks: 0, pickupsToday: 0 });
+  const [metrics, setMetrics] = useState({
+    successfulPickups: 0,
+    missedPickups: 0,
+    pickupsToday: 0,
+  });
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -19,47 +26,54 @@ export const TodayStats = () => {
 
     fetchMetrics();
   }, []);
+  
+
+  const pieOptions: ApexOptions = {
+    chart: {
+      fontFamily: "Outfit, sans-serif",
+      type: "pie",
+      toolbar: { show: false },
+    },
+    labels: ["Successful", "Missed"],
+    colors: ["#465fff", "#ef4444"],
+    legend: {
+      position: "bottom" as const,
+    },
+    dataLabels: {
+      enabled: false,
+    },
+    tooltip: {
+      enabled: true,
+      theme: "light", // light background like your screenshot
+      fillSeriesColor: false,
+      marker: {
+        show: true, // shows the dot
+      },
+      y: {
+        formatter: (value: number) => `${value} Bins`,
+      },
+    },
+  };
+
+  const pieSeries = [
+    metrics.successfulPickups,
+    metrics.missedPickups,
+  ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-      {/* Bins Metric */}
+    <div className="gap-4 md:gap-6">  
+      {/* Pie Chart */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-        <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-          <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />
-        </div>
-        <div className="flex items-end justify-between mt-5">
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Bins Collected</span>
-            <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-              {metrics.bins}
-            </h4>
-          </div>
-          <Badge color="success">
-            <ArrowUpIcon />
-            +100%
-          </Badge>
-        </div>
+        <h4 className="font-semibold text-gray-800 mb-4 dark:text-white/90">
+          Pickup Status 
+        </h4>
+        <ApexChart
+          options={pieOptions}
+          series={pieSeries}
+          type="pie"
+          width="100%"
+        />
       </div>
-
-      {/* Trucks Metric */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-        <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-          <BoxIconLine className="text-gray-800 dark:text-white/90" />
-        </div>
-        <div className="flex items-end justify-between mt-5">
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">Bins Missed</span>
-            <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-              {metrics.trucks}
-            </h4>
-          </div>
-          <Badge color="success">
-            <ArrowUpIcon />
-            +1.7%
-          </Badge>
-        </div>
-      </div>
-    
     </div>
   );
 };
