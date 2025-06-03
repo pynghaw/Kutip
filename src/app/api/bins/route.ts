@@ -6,55 +6,58 @@ import { supabase } from '@/lib/supabaseClient';
 
 // Interface representing the EXACT raw schema of your 'bins' table in Supabase
 interface SupabaseBinRow {
-  bin_id: number;           // Primary Key - remains number
-  bin_plate: string;        // NEW COLUMN - string
+  bin_id: number;
+  bin_plate: string;
   label: string;
   latitude: number;
   longitude: number;
-  is_active: boolean;
+  status_id: number;
   c_id: number | null;
   created_at: string;
+  // Assuming 'area' column is not used in the API for now based on previous requests
+  // area?: number;
 }
 
 // Interface for the data that Supabase returns after the JOIN query
 interface SupabaseBinDataWithCustomer extends SupabaseBinRow {
   customer: { c_name: string } | null;
+  bin_status: { status: string } | null; // CHANGED: Column name is 'status', not 'status_name'
 }
 
 // Type for the data expected in the POST request body (frontend to backend)
 interface BinCreateRequestBody {
-  BinPlate: string;           // Now you need to send this for the new column
+  BinPlate: string;
   Location: string;
   Latitude: number;
   Longitude: number;
-  IsActive?: boolean;
+  StatusId?: number;
   CustomerId?: number | null;
 }
 
 // Type for the data expected in the PUT request body (frontend to backend)
 interface BinUpdateRequestBody {
-  BinID: number;             // Remains number, as it's the primary key for updates
-  BinPlate?: string;         // Optional, if you want to update the bin_plate itself
+  BinID: number;
+  BinPlate?: string;
   Location?: string;
   Latitude?: number;
   Longitude?: number;
-  IsActive?: boolean;
+  StatusId?: number;
   CustomerId?: number | null;
 }
 
 // Type for the data expected in the DELETE request body (frontend to backend)
 interface BinDeleteRequestBody {
-  BinID: number;             // Remains number, as it's the primary key for deletion
+  BinID: number;
 }
 
 // Define the type for the data your API will return to the frontend.
-interface BinWithCustomerName {
-  BinID: number;             // Still present in the frontend response
-  BinPlate: string;          // Added for frontend display
+interface BinWithCustomerAndStatusName {
+  BinID: number;
+  BinPlate: string;
   Location: string;
   Latitude: number;
   Longitude: number;
-  IsActive: boolean;
+  StatusName: string; // This remains StatusName for frontend display
   CustomerID: number | null;
   CreatedAt: string;
   CustomerName: string | null;
@@ -69,7 +72,8 @@ export async function GET() {
       .from('bins')
       .select<string, SupabaseBinDataWithCustomer>(`
         *,
-        customer:customer!bins_c_id_fkey(c_name)
+        customer:customer!bins_c_id_fkey(c_name),
+        bin_status:bin_status!bins_status_id_fkey(status) -- CHANGED: Select 'status'
       `)
       .order('created_at', { ascending: false });
 
@@ -82,19 +86,19 @@ export async function GET() {
       return NextResponse.json({ error: 'No bin data found.' }, { status: 404 });
     }
 
-    const binsWithCustomerNames: BinWithCustomerName[] = data.map(bin => ({
-      BinID: bin.bin_id,         // Keep mapping bin_id
-      BinPlate: bin.bin_plate,   // Map the new bin_plate
+    const binsWithCustomerAndStatusNames: BinWithCustomerAndStatusName[] = data.map(bin => ({
+      BinID: bin.bin_id,
+      BinPlate: bin.bin_plate,
       Location: bin.label,
       Latitude: bin.latitude,
       Longitude: bin.longitude,
-      IsActive: bin.is_active,
+      StatusName: bin.bin_status?.status || 'Unknown', // CHANGED: Access 'status'
       CustomerID: bin.c_id,
       CreatedAt: bin.created_at,
       CustomerName: bin.customer?.c_name || null,
     }));
 
-    return NextResponse.json(binsWithCustomerNames);
+    return NextResponse.json(binsWithCustomerAndStatusNames);
   } catch (error: unknown) {
     console.error('GET /api/bins error:', error);
     if (error instanceof Error) {
@@ -104,42 +108,54 @@ export async function GET() {
   }
 }
 
-
-// POST a new bin
 export async function POST(request: NextRequest) {
   try {
-    const { BinPlate, Location, Latitude, Longitude, IsActive, CustomerId }: BinCreateRequestBody = await request.json();
+    const { BinPlate, Location, Latitude, Longitude, StatusId, CustomerId }: BinCreateRequestBody = await request.json();
 
-    if (!BinPlate || !Location || Latitude === undefined || Longitude === undefined) { // Now BinPlate is also required
+    if (!BinPlate || !Location || Latitude === undefined || Longitude === undefined) {
       return NextResponse.json({ error: 'Missing required fields: BinPlate, Location, Latitude, and Longitude are required.' }, { status: 400 });
     }
+
+    let finalStatusId = StatusId;
+    if (finalStatusId === undefined) {
+        const { data: defaultStatus, error: statusError } = await supabase
+            .from('bin_status')
+            .select('status_id')
+            .eq('status', 'Active') // CHANGED: Query by 'status' column
+            .single();
+
+        if (statusError || !defaultStatus) {
+            console.error('Could not find default "Active" status ID:', statusError);
+            return NextResponse.json({ error: 'Failed to find default status for new bin.' }, { status: 500 });
+        }
+        finalStatusId = defaultStatus.status_id;
+    }
+
 
     const { data, error } = await supabase
       .from('bins')
       .insert([
         {
-          bin_plate: BinPlate, // Insert the new bin_plate
+          bin_plate: BinPlate,
           label: Location,
           latitude: Latitude,
           longitude: Longitude,
-          is_active: IsActive === undefined ? true : IsActive,
+          status_id: finalStatusId,
           c_id: CustomerId || null
         },
       ])
-      .select() // Select all columns of the inserted row
+      .select()
       .single();
 
     if (error) {
       throw error;
     }
 
-    // After insertion, you might want to re-fetch the list to get the customer name
-    // associated with the new bin, or enhance this response to include it directly.
     return NextResponse.json(data, { status: 201 });
   } catch (error: unknown) {
     console.error('POST /api/bins error:', error);
     if (error instanceof Error) {
-      if ('code' in error && error.code === '23505') { // Unique constraint violation, could be on bin_plate if you set it
+      if ('code' in error && error.code === '23505') {
           return NextResponse.json({ error: 'Failed to create bin. Bin Plate might already exist (if unique).', details: error.message }, { status: 409 });
       }
       return NextResponse.json({ error: 'Failed to create bin', details: error.message }, { status: 500 });
@@ -148,21 +164,20 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT (update) an existing bin
 export async function PUT(request: NextRequest) {
   try {
-    const { BinID, BinPlate, Location, Latitude, Longitude, IsActive, CustomerId }: BinUpdateRequestBody = await request.json();
+    const { BinID, BinPlate, Location, Latitude, Longitude, StatusId, CustomerId }: BinUpdateRequestBody = await request.json();
 
-    if (!BinID) { // Still use BinID as the primary key for identifying the row
+    if (!BinID) {
       return NextResponse.json({ error: 'BinID is required for updating.' }, { status: 400 });
     }
 
     const updateData: Partial<SupabaseBinRow> = {};
-    if (BinPlate !== undefined) updateData.bin_plate = BinPlate; // Allow updating bin_plate
+    if (BinPlate !== undefined) updateData.bin_plate = BinPlate;
     if (Location !== undefined) updateData.label = Location;
     if (Latitude !== undefined) updateData.latitude = Latitude;
     if (Longitude !== undefined) updateData.longitude = Longitude;
-    if (IsActive !== undefined) updateData.is_active = IsActive;
+    if (StatusId !== undefined) updateData.status_id = StatusId;
     if (CustomerId !== undefined) updateData.c_id = CustomerId;
 
     if (Object.keys(updateData).length === 0) {
@@ -172,7 +187,7 @@ export async function PUT(request: NextRequest) {
     const { data, error } = await supabase
       .from('bins')
       .update(updateData)
-      .eq('bin_id', BinID) // Still query by bin_id
+      .eq('bin_id', BinID)
       .select()
       .single();
 
@@ -183,7 +198,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Bin not found or no changes made.' }, { status: 404 });
     }
 
-    return NextResponse.json(data); // Returns raw SupabaseBinRow, consider re-fetching for frontend consistency
+    return NextResponse.json(data);
   } catch (error: unknown) {
     console.error('PUT /api/bins error:', error);
     if (error instanceof Error) {
@@ -196,10 +211,9 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE a bin
 export async function DELETE(request: NextRequest) {
   try {
-    const { BinID }: BinDeleteRequestBody = await request.json(); // Still use BinID for deletion
+    const { BinID }: BinDeleteRequestBody = await request.json();
 
     if (!BinID) {
       return NextResponse.json({ error: 'BinID is required for deletion.' }, { status: 400 });
@@ -208,7 +222,7 @@ export async function DELETE(request: NextRequest) {
     const { data, error } = await supabase
       .from('bins')
       .delete()
-      .eq('bin_id', BinID) // Still query by bin_id
+      .eq('bin_id', BinID)
       .select()
       .single();
 

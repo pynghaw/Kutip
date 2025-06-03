@@ -9,7 +9,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "../ui/dialog/Dialog";
 import Label from "../form/Label";
 import React, { useEffect, useState } from "react";
@@ -26,28 +25,37 @@ import Badge from "../ui/badge/Badge";
 
 // Interface for the data returned directly from your /api/bins GET endpoint
 interface Bin {
-  BinID: number;           // Still exists as primary key
-  BinPlate: string;        // New field for display
+  BinID: number;
+  BinPlate: string;
   Location: string;
   Latitude: number;
   Longitude: number;
-  IsActive: boolean;
-  CollectionStatus: string; // Still exists in data, but won't be displayed
+  StatusName: string;        // This remains StatusName for display convenience
   CustomerID: number | null;
   CreatedAt: string;
-  LastUpdated: string | null;
   CustomerName: string | null;
 }
 
-// Interface for the form data (used for Create/Update Bin modals)
+// Interface for the form data (used for Update Bin modal)
 interface BinFormData {
-  bin_plate: string; // New input for bin_plate
+  bin_plate: string;
   label: string;
-  latitude: number | string; // Using string for initial input value
+  latitude: number | string;
   longitude: number | string;
-  collection_status: string; // Still exists in form, but won't be displayed in table
-  is_active: boolean;
+  status_id: number | string;
   c_id: number | null;
+}
+
+// Interface for Customer data (remains the same)
+interface Customer {
+  c_id: number;
+  c_name: string;
+}
+
+// NEW Interface for Bin Status data
+interface BinStatus {
+  status_id: number;
+  status: string; // CHANGED: Column name is 'status'
 }
 
 // --- END: CORRECTED INTERFACES ---
@@ -58,8 +66,7 @@ const initialBinFormData: BinFormData = {
   label: "",
   latitude: "",
   longitude: "",
-  collection_status: "pending", // Still needed for form submission if you intend to send it
-  is_active: true,
+  status_id: "",
   c_id: null,
 };
 
@@ -91,18 +98,37 @@ export default function BinsTable() {
   const [currentBin, setCurrentBin] = useState<Bin | null>(null);
   const [formData, setFormData] = useState<BinFormData>(initialBinFormData);
   const [binsData, setBinsData] = useState<Bin[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [binStatuses, setBinStatuses] = useState<BinStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch('/api/bins');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const [binsResponse, customersResponse, statusesResponse] = await Promise.all([
+          fetch('/api/bins'),
+          fetch('/api/customers'),
+          fetch('/api/bin-statuses')
+        ]);
+
+        if (!binsResponse.ok) {
+          throw new Error(`HTTP error! status: ${binsResponse.status} from /api/bins`);
         }
-        const data: Bin[] = await response.json();
-        setBinsData(data);
+        if (!customersResponse.ok) {
+          throw new Error(`HTTP error! status: ${customersResponse.status} from /api/customers`);
+        }
+        if (!statusesResponse.ok) {
+          throw new Error(`HTTP error! status: ${statusesResponse.status} from /api/bin-statuses`);
+        }
+
+        const bins: Bin[] = await binsResponse.json();
+        const customersData: Customer[] = await customersResponse.json();
+        const statusesData: BinStatus[] = await statusesResponse.json();
+
+        setBinsData(bins);
+        setCustomers(customersData);
+        setBinStatuses(statusesData);
       } catch (e) {
         if (e instanceof Error) {
           setError(e.message);
@@ -117,40 +143,6 @@ export default function BinsTable() {
     fetchData();
   }, []);
 
-  const handleCreateBin = async () => {
-    try {
-      const response = await fetch('/api/bins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          BinPlate: formData.bin_plate,
-          Location: formData.label,
-          Latitude: parseFloat(formData.latitude as string),
-          Longitude: parseFloat(formData.longitude as string),
-          IsActive: formData.is_active,
-          CollectionStatus: formData.collection_status, // Still send if your API expects it
-          CustomerId: formData.c_id
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
-      }
-      const fetchResponse = await fetch('/api/bins');
-      const updatedBins = await fetchResponse.json();
-      setBinsData(updatedBins);
-
-      setIsCreateModalOpen(false);
-      setFormData(initialBinFormData);
-    } catch (e) {
-      if (e instanceof Error) {
-        setError(`Failed to create bin: ${e.message}`);
-      } else {
-        setError('An unknown error occurred while creating bin.');
-      }
-    }
-  };
-
   const handleUpdateBin = async () => {
     if (!currentBin) return;
     try {
@@ -163,8 +155,7 @@ export default function BinsTable() {
           Location: formData.label,
           Latitude: parseFloat(formData.latitude as string),
           Longitude: parseFloat(formData.longitude as string),
-          IsActive: formData.is_active,
-          CollectionStatus: formData.collection_status, // Still send if your API expects it
+          StatusId: formData.status_id === "" ? undefined : Number(formData.status_id),
           CustomerId: formData.c_id
         }),
       });
@@ -172,6 +163,7 @@ export default function BinsTable() {
         const errorData = await response.json();
         throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
       }
+      // Re-fetch all data to get the latest bins with customer and status names
       const fetchResponse = await fetch('/api/bins');
       const updatedBins = await fetchResponse.json();
       setBinsData(updatedBins);
@@ -212,13 +204,14 @@ export default function BinsTable() {
 
   const openEditModal = (bin: Bin) => {
     setCurrentBin(bin);
+    // Find the status ID based on the status name for the form
+    const currentStatus = binStatuses.find(s => s.status === bin.StatusName); // CHANGED: Compare with 'status'
     setFormData({
       bin_plate: bin.BinPlate,
       label: bin.Location,
       latitude: bin.Latitude.toString(),
       longitude: bin.Longitude.toString(),
-      collection_status: bin.CollectionStatus, // Keep this for the form
-      is_active: bin.IsActive,
+      status_id: currentStatus ? currentStatus.status_id : "",
       c_id: bin.CustomerID
     });
     setIsEditModalOpen(true);
@@ -230,10 +223,10 @@ export default function BinsTable() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -241,7 +234,7 @@ export default function BinsTable() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'c_id' ? (value === "" ? null : Number(value)) : value,
     }));
   };
 
@@ -253,12 +246,12 @@ export default function BinsTable() {
     return <div className="p-4 text-center text-red-500">Error loading data: {error}</div>;
   }
 
-  const renderBinForm = (submitHandler: () => void, closeHandler: () => void, isEditMode: boolean) => (
+  const renderBinForm = (submitHandler: () => void, closeHandler: () => void) => (
     <>
       <DialogHeader>
-        <DialogTitle>{isEditMode ? 'Edit Bin' : 'Create New Bin'}</DialogTitle>
+        <DialogTitle>Edit Bin</DialogTitle>
         <DialogDescription>
-          {isEditMode ? 'Update the details of the bin.' : 'Enter the details for the new bin.'}
+          Update the details of the bin.
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
@@ -285,22 +278,43 @@ export default function BinsTable() {
           <Input id="longitude" name="longitude" defaultValue={formData.longitude} onChange={handleInputChange} className="col-span-3" />
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="is_active" className="text-right">Active Status</Label>
-          <Input id="is_active" name="is_active" type="checkbox" checked={formData.is_active} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
+          <Label htmlFor="status_id" className="text-right">Status</Label>
+          <select
+            id="status_id"
+            name="status_id"
+            value={formData.status_id}
+            onChange={handleSelectChange}
+            className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          >
+            <option value="">Select Status</option>
+            {binStatuses.map((status) => (
+              <option key={status.status_id} value={status.status_id}>
+                {status.status} {/* CHANGED: Use status.status */}
+              </option>
+            ))}
+          </select>
         </div>
-        {/* If you no longer need to edit collection status, you can remove this from the form as well */}
-        {/* <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="collection_status" className="text-right">Collection Status</Label>
-          <Input id="collection_status" name="collection_status" defaultValue={formData.collection_status} onChange={handleInputChange} className="col-span-3" />
-        </div> */}
         <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="c_id" className="text-right">Customer ID</Label>
-          <Input id="c_id" name="c_id" type="number" defaultValue={formData.c_id || ''} onChange={handleInputChange} className="col-span-3" />
+          <Label htmlFor="c_id" className="text-right">Customer</Label>
+          <select
+            id="c_id"
+            name="c_id"
+            value={formData.c_id === null ? "" : formData.c_id}
+            onChange={handleSelectChange}
+            className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          >
+            <option value="">Select Customer (Optional)</option>
+            {customers.map((customer) => (
+              <option key={customer.c_id} value={customer.c_id}>
+                {customer.c_name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={closeHandler}>Cancel</Button>
-        <Button onClick={submitHandler}>{isEditMode ? 'Save Changes' : 'Create Bin'}</Button>
+        <Button onClick={submitHandler}>Save Changes</Button>
       </DialogFooter>
     </>
   );
@@ -308,12 +322,12 @@ export default function BinsTable() {
   return (
     <div className="p-4">
       <div className="mb-4 flex justify-end">
-        
+        {/* Removed Create Bin button */}
       </div>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          {currentBin && renderBinForm(handleUpdateBin, () => setIsEditModalOpen(false), true)}
+          {currentBin && renderBinForm(handleUpdateBin, () => setIsEditModalOpen(false))}
         </DialogContent>
       </Dialog>
 
@@ -327,7 +341,7 @@ export default function BinsTable() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { if (currentBin) handleDeleteBin(currentBin.BinID); setIsDeleteConfirmOpen(false); }}>Delete</Button>
+            <Button variant="destructive" size="sm" onClick={() => { if (currentBin) handleDeleteBin(currentBin.BinID); setIsDeleteConfirmOpen(false); }}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -354,7 +368,7 @@ export default function BinsTable() {
                     Longitude
                   </TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                    Active Status
+                    Status
                   </TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                     Customer Name
@@ -389,9 +403,9 @@ export default function BinsTable() {
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                       <Badge
                         size="sm"
-                        color={bin.IsActive ? "success" : "error"}
+                        color={bin.StatusName === "Active" ? "success" : "error"}
                       >
-                        {bin.IsActive ? "Active" : "Inactive"}
+                        {bin.StatusName}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
@@ -412,7 +426,6 @@ export default function BinsTable() {
                 ))}
                 {binsData.length === 0 && (
                   <TableRow>
-                    {/* colSpan updated from 10 to 9 (1 column removed) */}
                     <TableCell colSpan={9} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
                       No bins found.
                     </TableCell>
