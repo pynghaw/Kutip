@@ -12,7 +12,7 @@ type Bin = {
   label: string;
   latitude: number;
   longitude: number;
-  status: number;
+  status_id: number;
   c_id: number;
   bin_plate: string;
   area: number;
@@ -248,7 +248,7 @@ export default function Map() {
 
     filteredBins.forEach((bin) => {
       const color = getBinColor(bin.latitude, bin.longitude);
-      const status = statuses.find((s) => s.status_id == bin.status)?.status || "Unknown";
+      const status = statuses.find((s) => s.status_id == bin.status_id)?.status || "Unknown";
       const isActive = status.toLowerCase() === "active";
       const statusColor = isActive ? "#10b981" : "#ef4444";
       const areaName = areaNames[bin.area as keyof typeof areaNames] || `Area ${bin.area}`;

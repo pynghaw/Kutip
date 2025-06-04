@@ -8,7 +8,7 @@ type Bin = {
   label: string;
   latitude: number;
   longitude: number;
-  status: number;
+  status_id: number;
   c_id: number;
   bin_plate: string;
   area: string;
@@ -659,9 +659,9 @@ export default function ManageSchedulePage() {
                           </td>
                           <td className="px-4 py-2 text-sm">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              assignment.bin?.status === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              assignment.bin?.status_id === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {assignment.bin?.status === 1 ? 'Active' : 'Inactive'}
+                              {assignment.bin?.status_id === 1 ? 'Active' : 'Inactive'}
                             </span>
                           </td>
                         </tr>
