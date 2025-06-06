@@ -40,7 +40,7 @@ type Route = {
   route_name: string;
   truck_id: number;
   scheduled_date: string;
-  estimated_duration: number;
+  //estimated_duration: number;
   status: 'pending' | 'in_progress' | 'completed';
   total_bins?: number;
   schedule_id?: number;
@@ -437,12 +437,6 @@ export default function AutoSchedulingPage() {
     return R * c;
   };
 
-  // Calculate estimated duration
-  const calculateDuration = (binCount: number): number => {
-    const baseTime = binCount * 20;
-    const travelTime = binCount * 5;
-    return baseTime + travelTime + 30;
-  };
 
   // Handle truck selection
   const handleTruckSelection = (truckId: number) => {
@@ -658,7 +652,7 @@ export default function AutoSchedulingPage() {
           route_name: `${truck.assigned_area} - ${truck.plate_no} - ${new Date(date).toLocaleDateString()}`,
           truck_id: truck.truck_id,
           scheduled_date: date,
-          estimated_duration: calculateDuration(truckBins.length),
+         // estimated_duration: calculateDuration(truckBins.length),
           status: 'pending',
           total_bins: truckBins.length,
           schedule_id: scheduleId,
@@ -957,9 +951,7 @@ return (
                       <p className="text-xs text-gray-600">
                         Date: {new Date(route.scheduled_date).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-gray-600">
-                        Duration: {route.estimated_duration} min
-                      </p>
+    
                       <p className="text-xs text-gray-600">
                         Bins: {route.total_bins || 0}
                       </p>

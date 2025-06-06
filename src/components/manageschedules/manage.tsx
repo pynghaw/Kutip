@@ -36,7 +36,7 @@ type Route = {
   route_name: string;
   truck_id: number;
   scheduled_date: string;
-  estimated_duration: number;
+//  estimated_duration: number;
   status: 'pending' | 'in_progress' | 'completed';
   total_bins?: number;
   schedule_id?: number;

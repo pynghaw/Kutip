@@ -8,6 +8,13 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 // Set Mapbox access token
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
+// Collection Center coordinates
+const COLLECTION_CENTER = {
+  lat: 1.5341,
+  lng: 103.6217,
+  name: "Collection Center"
+};
+
 type Bin = {
   bin_id: number;
   label: string;
@@ -46,7 +53,6 @@ type Route = {
   route_name: string;
   truck_id: number;
   scheduled_date: string;
-  estimated_duration: number;
   status: 'pending' | 'in_progress' | 'completed';
   total_bins?: number;
   schedule_id?: number;
@@ -69,6 +75,12 @@ type ScheduleDetails = Schedule & {
   assignments: (TruckAssignment & { bin: Bin | null; truck: Truck | null; driver: Driver | null })[];
 };
 
+type RouteInfo = {
+  distance: number;
+  duration: number;
+  totalStops: number;
+};
+
 export default function ScheduleDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,6 +90,7 @@ export default function ScheduleDetailPage() {
 
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<Route & { truck: Truck | null; driver: Driver | null } | null>(null);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -209,7 +222,7 @@ export default function ScheduleDetailPage() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [101.6869, 3.1390], // Default to Kuala Lumpur
+      center: [COLLECTION_CENTER.lng, COLLECTION_CENTER.lat], // Center on collection center
       zoom: 11
     });
 
@@ -241,12 +254,44 @@ export default function ScheduleDetailPage() {
       return;
     }
 
-    // Add markers for each bin
+    // Create coordinates array starting from collection center
     const coordinates: [number, number][] = [];
+    
+    // Start from collection center
+    coordinates.push([COLLECTION_CENTER.lng, COLLECTION_CENTER.lat]);
+    
+    // Add all bin coordinates
+    routeBins.forEach(bin => {
+      if (bin) {
+        coordinates.push([bin.longitude, bin.latitude]);
+      }
+    });
+    
+    // Return to collection center
+    coordinates.push([COLLECTION_CENTER.lng, COLLECTION_CENTER.lat]);
+
+    // Add collection center marker
+    new mapboxgl.Marker({
+      color: '#8b5cf6' // Purple for collection center
+    })
+      .setLngLat([COLLECTION_CENTER.lng, COLLECTION_CENTER.lat])
+      .setPopup(
+        new mapboxgl.Popup({ offset: 25 })
+          .setHTML(`
+            <div class="p-2">
+              <h3 class="font-semibold">${COLLECTION_CENTER.name}</h3>
+              <p class="text-sm text-gray-600">Start/End Point</p>
+              <p class="text-sm text-gray-600">Coordinates: ${COLLECTION_CENTER.lat.toFixed(4)}, ${COLLECTION_CENTER.lng.toFixed(4)}</p>
+            </div>
+          `)
+      )
+      .addTo(map.current!);
+
+    // Add markers for each bin
     routeBins.forEach((bin, index) => {
       if (bin) {
         const marker = new mapboxgl.Marker({
-          color: index === 0 ? '#22c55e' : index === routeBins.length - 1 ? '#ef4444' : '#3b82f6'
+          color: '#3b82f6' // Blue for bins
         })
           .setLngLat([bin.longitude, bin.latitude])
           .setPopup(
@@ -254,34 +299,42 @@ export default function ScheduleDetailPage() {
               .setHTML(`
                 <div class="p-2">
                   <h3 class="font-semibold">${bin.label || bin.bin_plate}</h3>
+                  <p class="text-sm text-gray-600">Stop ${index + 1} of ${routeBins.length}</p>
                   <p class="text-sm text-gray-600">Area: ${bin.area}</p>
                   <p class="text-sm text-gray-600">Coordinates: ${bin.latitude.toFixed(4)}, ${bin.longitude.toFixed(4)}</p>
                 </div>
               `)
           )
           .addTo(map.current!);
-
-        coordinates.push([bin.longitude, bin.latitude]);
       }
     });
 
-    if (coordinates.length > 1) {
+    if (coordinates.length > 2) {
       try {
         // Get route from Mapbox Directions API
         const coordinatesString = coordinates.map(coord => coord.join(',')).join(';');
-        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinatesString}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinatesString}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
         
         const response = await fetch(directionsUrl);
         const data = await response.json();
         
         if (data.routes && data.routes[0]) {
+          const route = data.routes[0];
+          
+          // Set route information
+          setRouteInfo({
+            distance: route.distance / 1000, // Convert to kilometers
+            duration: route.duration / 60, // Convert to minutes
+            totalStops: routeBins.length
+          });
+
           // Add route line to map
           map.current!.addSource('route', {
             type: 'geojson',
             data: {
               type: 'Feature',
               properties: {},
-              geometry: data.routes[0].geometry
+              geometry: route.geometry
             }
           });
 
@@ -302,6 +355,7 @@ export default function ScheduleDetailPage() {
         }
       } catch (error) {
         console.error('Error fetching route:', error);
+        setRouteInfo(null);
       }
     }
 
@@ -375,6 +429,12 @@ export default function ScheduleDetailPage() {
     });
   };
 
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 space-y-4 min-h-[600px]">
@@ -402,262 +462,255 @@ export default function ScheduleDetailPage() {
       </div>
     );
   }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{scheduleDetails.schedule_name}</h1>
-              <p className="text-sm text-gray-600 mt-1">Schedule Details</p>
-            </div>
-          </div>
-          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(scheduleDetails.status)}`}>
-            {scheduleDetails.status || 'pending'}
+  <div className="space-y-6">
+    {/* Header */}
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Schedules
+        </button>
+        <div className="flex items-center space-x-3">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(scheduleDetails.status)}`}>
+            {scheduleDetails.status || 'Active'}
           </span>
-        </div>
-
-        {/* Schedule Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-blue-600 text-sm font-medium">Scheduled Date</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {formatDate(scheduleDetails.scheduled_date)}
-            </div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-green-600 text-sm font-medium">Total Trucks</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.total_trucks}
-            </div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="text-yellow-600 text-sm font-medium">Total Bins</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.total_bins}
-            </div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="text-purple-600 text-sm font-medium">Total Routes</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.total_routes}
-            </div>
-          </div>
-        </div>
-
-        {scheduleDetails.description && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-            <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">{scheduleDetails.description}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Routes Section */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Routes ({scheduleDetails.routes.length})</h2>
           <button
             onClick={() => setShowMap(!showMap)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
             {showMap ? 'Hide Map' : 'Show Map'}
           </button>
         </div>
-
-        {scheduleDetails.routes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No routes assigned to this schedule</div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Routes List */}
-            <div className="space-y-4">
-              {scheduleDetails.routes.map((route) => (
-                <div
-                  key={route.route_id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedRoute?.route_id === route.route_id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => {
-                    setSelectedRoute(route);
-                    if (!showMap) setShowMap(true);
-                  }}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{route.route_name}</h3>
-                      <p className="text-sm text-gray-600">
-                        Truck: {route.truck?.plate_no || 'Not assigned'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Driver: {route.driver?.d_name || 'Not assigned'}
-                      </p>
-                    </div>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(route.status)}`}>
-                      {route.status}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">
-                      Duration: {route.estimated_duration} mins
-                    </span>
-                    <div className="flex gap-2">
-                      {route.status === 'pending' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateRouteStatus(route.route_id!, 'in_progress');
-                          }}
-                          disabled={updatingRoute === route.route_id}
-                          className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors disabled:opacity-50"
-                        >
-                          {updatingRoute === route.route_id ? 'Starting...' : 'Start'}
-                        </button>
-                      )}
-                      {route.status === 'in_progress' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateRouteStatus(route.route_id!, 'completed');
-                          }}
-                          disabled={updatingRoute === route.route_id}
-                          className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-                        >
-                          {updatingRoute === route.route_id ? 'Completing...' : 'Complete'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Map */}
-            {showMap && (
-              <div className="lg:sticky lg:top-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-2">Route Map</h3>
-                  {selectedRoute ? (
-                    <p className="text-sm text-gray-600 mb-4">
-                      Showing route for: {selectedRoute.route_name}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-600 mb-4">
-                      Select a route to view on map
-                    </p>
-                  )}
-                  <div
-                    ref={mapContainer}
-                    className="h-96 rounded-lg border border-gray-200"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Assignments Section */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Truck Assignments ({scheduleDetails.assignments.length})</h2>
-        {scheduleDetails.assignments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No truck assignments for this schedule</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Truck
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Driver
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bin
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bin Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Area
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scheduled Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {scheduleDetails.assignments.map((assignment) => (
-                  <tr key={assignment.assignment_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {assignment.truck?.plate_no || 'Not assigned'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.driver?.d_name || 'Not assigned'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.bin?.label || assignment.bin?.bin_plate || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.bin?.latitude && assignment.bin?.longitude
-                        ? `${assignment.bin.latitude.toFixed(4)}, ${assignment.bin.longitude.toFixed(4)}`
-                        : 'Location not available'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.bin?.area || assignment.truck?.assigned_area || 'Not specified'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(assignment.scheduled_date)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{scheduleDetails.schedule_name}</h1>
+        <p className="text-gray-600 mb-4">{scheduleDetails.description}</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{scheduleDetails.total_trucks}</div>
+            <div className="text-sm text-gray-600">Total Trucks</div>
           </div>
-        )}
-      </div>
-
-      {/* Summary Section */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-gray-600 text-sm font-medium">Active Routes</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.routes.filter(route => route.status === 'in_progress').length}
-            </div>
+          <div className="bg-green-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{scheduleDetails.total_bins}</div>
+            <div className="text-sm text-gray-600">Total Bins</div>
           </div>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-gray-600 text-sm font-medium">Completed Routes</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.routes.filter(route => route.status === 'completed').length}
-            </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">{scheduleDetails.total_routes}</div>
+            <div className="text-sm text-gray-600">Total Routes</div>
           </div>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-gray-600 text-sm font-medium">Pending Routes</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {scheduleDetails.routes.filter(route => route.status === 'pending').length}
-            </div>
+          <div className="bg-orange-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">{formatDate(scheduleDetails.scheduled_date)}</div>
+            <div className="text-sm text-gray-600">Scheduled Date</div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
+
+    {/* Route Information Section - Outside Map */}
+    {selectedRoute && routeInfo && (
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Route Information: {selectedRoute.route_name || `Route ${selectedRoute.route_id}`}
+          </h2>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedRoute.status)}`}>
+            {selectedRoute.status}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{routeInfo.distance.toFixed(1)} km</div>
+            <div className="text-sm text-gray-600">Total Distance</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{formatDuration(routeInfo.duration)}</div>
+            <div className="text-sm text-gray-600">Estimated Duration</div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">{routeInfo.totalStops}</div>
+            <div className="text-sm text-gray-600">Total Stops</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">{routeInfo.totalStops + 1}</div>
+            <div className="text-sm text-gray-600">Total Waypoints</div>
+          </div>
+        </div>
+
+        {/* Driver and Truck Info */}
+        {selectedRoute.truck && (
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Assignment Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 mb-1">Assigned Truck</div>
+                <div className="text-lg font-semibold text-gray-900">{selectedRoute.truck.plate_no}</div>
+                <div className="text-sm text-gray-600">Area: {selectedRoute.truck.assigned_area}</div>
+              </div>
+              {selectedRoute.driver && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-1">Assigned Driver</div>
+                  <div className="text-lg font-semibold text-gray-900">{selectedRoute.driver.d_name}</div>
+                  <div className="text-sm text-gray-600">Driver ID: {selectedRoute.driver.d_id}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Map Section */}
+    {showMap && (
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Route Visualization</h2>
+          {!selectedRoute && (
+            <p className="text-gray-600">Select a route from the list below to view it on the map.</p>
+          )}
+        </div>
+        
+        <div className="relative">
+          <div
+            ref={mapContainer}
+            className="w-full h-96 rounded-lg border border-gray-300"
+          />
+        </div>
+      </div>
+    )}
+
+    {/* Routes Section */}
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Routes</h2>
+      
+      {scheduleDetails.routes.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No routes found for this schedule.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {scheduleDetails.routes.map((route) => {
+            const routeAssignments = scheduleDetails.assignments.filter(
+              assignment => assignment.truck_id === route.truck_id
+            );
+            
+            return (
+              <div
+                key={route.route_id}
+                className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                  selectedRoute?.route_id === route.route_id
+                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                }`}
+                onClick={() => {
+                  setSelectedRoute(route);
+                  if (!showMap) setShowMap(true);
+                }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {route.route_name || `Route ${route.route_id}`}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(route.status)}`}>
+                      {route.status}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {route.status === 'pending' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateRouteStatus(route.route_id!, 'in_progress');
+                        }}
+                        disabled={updatingRoute === route.route_id}
+                        className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+                      >
+                        {updatingRoute === route.route_id ? 'Starting...' : 'Start Route'}
+                      </button>
+                    )}
+                    
+                    {route.status === 'in_progress' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateRouteStatus(route.route_id!, 'completed');
+                        }}
+                        disabled={updatingRoute === route.route_id}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        {updatingRoute === route.route_id ? 'Completing...' : 'Complete Route'}
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedRoute(route);
+                        if (!showMap) setShowMap(true);
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                    >
+                      View Route
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Truck:</span>
+                    <div className="font-medium">
+                      {route.truck ? route.truck.plate_no : 'Not assigned'}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="text-gray-600">Driver:</span>
+                    <div className="font-medium">
+                      {route.driver ? route.driver.d_name : 'Not assigned'}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="text-gray-600">Bins:</span>
+                    <div className="font-medium">{routeAssignments.length} bins</div>
+                  </div>
+                </div>
+
+                {/* Bin Details for Selected Route */}
+                {selectedRoute?.route_id === route.route_id && routeAssignments.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-blue-200">
+                    <h4 className="font-medium text-gray-900 mb-2">Assigned Bins:</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {routeAssignments.map((assignment, index) => (
+                        <div
+                          key={assignment.assignment_id}
+                          className="bg-white border border-gray-200 rounded p-2 text-sm"
+                        >
+                          <div className="font-medium">
+                            Stop {index + 1}: {assignment.bin?.label || assignment.bin?.bin_plate}
+                          </div>
+                          <div className="text-gray-600 text-xs">
+                            {assignment.bin?.area}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  </div>
+);}
