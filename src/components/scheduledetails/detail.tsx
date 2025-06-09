@@ -553,7 +553,7 @@ export default function ScheduleDetailPage() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="text-sm text-gray-600 mb-1">Assigned Truck</div>
                 <div className="text-lg font-semibold text-gray-900">{selectedRoute.truck.plate_no}</div>
-                <div className="text-sm text-gray-600">Area: {selectedRoute.truck.assigned_area}</div>
+              
               </div>
               {selectedRoute.driver && (
                 <div className="bg-gray-50 p-4 rounded-lg">
