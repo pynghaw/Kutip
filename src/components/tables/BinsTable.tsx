@@ -1,7 +1,6 @@
 'use client';
 
 import Button from "../ui/button/Button";
-// Removed: import Input from "../form/input/InputField"; // No longer importing custom Input
 import {
     Dialog,
     DialogContent,
@@ -26,7 +25,6 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Set Mapbox access token directly for Canvas environment
-// User's provided token: pk.eyJ1IjoiaGF3MTcinLCJhIjoiY21hdDllbDU0MHV1MjJqb3N6cDA0bHF3ZiJ9.AIICmNJ-XrCYJDSo_0ipyw
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 // --- INTERFACES ---
@@ -99,12 +97,15 @@ export default function BinsTable() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isShowDetailsModalOpen, setIsShowDetailsModalOpen] = useState(false); // State for details modal
+    const [binDetailsToShow, setBinDetailsToShow] = useState<Bin | null>(null); // State to hold bin for details modal
+
     const [currentBin, setCurrentBin] = useState<Bin | null>(null);
     const [formData, setFormData] = useState<BinFormData>(initialBinFormData);
     const [binsData, setBinsData] = useState<Bin[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [binStatuses, setBinStatuses] = useState<BinStatus[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Corrected this line
     const [error, setError] = useState<string | null>(null);
 
     // Map-related states for the modal
@@ -117,7 +118,7 @@ export default function BinsTable() {
     const centerLat = 1.5341;
     const centerLng = 103.6217;
 
-    // Area definitions for geographical segmentation (copied from BinMap)
+    // Area definitions and their names for display
     const areaNames = {
         1: "Northwest",
         2: "Northeast",
@@ -481,6 +482,12 @@ export default function BinsTable() {
         setIsDeleteConfirmOpen(true);
     };
 
+    // Function to open bin details modal
+    const openBinDetailsModal = (bin: Bin) => {
+        setBinDetailsToShow(bin);
+        setIsShowDetailsModalOpen(true);
+    };
+
     // --- Form Input Change Handlers ---
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -640,6 +647,72 @@ export default function BinsTable() {
                 </DialogContent>
             </Dialog>
 
+            {/* Bin Details Dialog */}
+            <Dialog open={isShowDetailsModalOpen} onOpenChange={setIsShowDetailsModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Bin Details</DialogTitle>
+                        <DialogDescription>
+                            Detailed information for the selected bin.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        {binDetailsToShow ? (
+                            <>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Bin ID:</Label>
+                                    <span>{binDetailsToShow.BinID}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Bin Plate:</Label>
+                                    <span>{binDetailsToShow.BinPlate}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Location Label:</Label>
+                                    <span>{binDetailsToShow.Location}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Latitude:</Label>
+                                    <span>{binDetailsToShow.Latitude}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Longitude:</Label>
+                                    <span>{binDetailsToShow.Longitude}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Status:</Label>
+                                    <span>
+                                        <Badge
+                                            size="sm"
+                                            color={binDetailsToShow.StatusName === "Active" ? "success" : "error"}
+                                        >
+                                            {binDetailsToShow.StatusName}
+                                        </Badge>
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Customer:</Label>
+                                    <span>{binDetailsToShow.CustomerName || 'N/A'}</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Area:</Label>
+                                    <span>{areaNames[binDetailsToShow.Area as keyof typeof areaNames]} ({binDetailsToShow.Area})</span>
+                                </div>
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <Label className="text-right">Created At:</Label>
+                                    <span>{formatDateTime(binDetailsToShow.CreatedAt)}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <p>No bin details available.</p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsShowDetailsModalOpen(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
                 <DialogContent className="sm:max-w-[425px]">
@@ -679,6 +752,9 @@ export default function BinsTable() {
                                         Longitude
                                     </TableCell>
                                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                        Area
+                                    </TableCell>
+                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                                         Status
                                     </TableCell>
                                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
@@ -689,7 +765,7 @@ export default function BinsTable() {
                                     </TableCell>
                                     <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                                         Actions
-                                    </TableCell>
+                                    </TableCell> {/* Consolidated Actions Header */}
                                 </TableRow>
                             </TableHeader>
 
@@ -712,6 +788,9 @@ export default function BinsTable() {
                                             {bin.Longitude}
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                            {areaNames[bin.Area as keyof typeof areaNames] || `Area ${bin.Area}`}
+                                        </TableCell>
+                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                                             <Badge
                                                 size="sm"
                                                 color={bin.StatusName === "Active" ? "success" : "error"}
@@ -726,7 +805,11 @@ export default function BinsTable() {
                                             {formatDateTime(bin.CreatedAt)}
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            <Button variant="outline" size="sm" className="mr-2" onClick={() => openEditModal(bin)}>
+                                            {/* Consolidated Actions buttons with specific colors */}
+                                            <Button variant="outline" size="sm" className="mr-2" onClick={() => openBinDetailsModal(bin)}>
+                                                Details
+                                            </Button>
+                                            <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>
                                                 Edit
                                             </Button>
                                             <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>
@@ -737,7 +820,7 @@ export default function BinsTable() {
                                 ))}
                                 {binsData.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
+                                        <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
                                             No bins found.
                                         </TableCell>
                                     </TableRow>

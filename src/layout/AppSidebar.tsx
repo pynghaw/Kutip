@@ -33,16 +33,16 @@ const navItems: NavItem[] = [
     path: "/",
   }, 
    {
-    name: "Map/Schduling",
+    name: "Map/Scheduling",
     icon: <CalenderIcon />,
     subItems: [
-      { name: "Map/Add bin", path: "/map", pro: false },
+      { name: "Map View", path: "/map", pro: false },
       { name: "Create Schedule", path: "/scheduling", pro: false },
        { name: "Manage Schedule", path: "/manageschedule", pro: false },
     ],
   },     
   {
-    name: "Tables",
+    name: "Operational Tables",
     icon: <TableIcon />,
     subItems: [
       { name: "Bins", path: "/bins-tables", pro: false },
@@ -55,14 +55,6 @@ const navItems: NavItem[] = [
 ];
 
 const othersItems: NavItem[] = [
-  {
-    name: "Pages",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
-  },
   {
     name: "Forms",
     icon: <ListIcon />,
