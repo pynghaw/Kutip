@@ -315,7 +315,7 @@ export default function BinsTable() {
             // Add map click listener
             map.on('click', (e) => {
                 const lngLat = e.lngLat;
-                const detectedArea = getAreaFromCoords(lngLat.lat, lngLat.lat); // Fixed: Should be lngLat.lng for longitude
+                const detectedArea = getAreaFromCoords(lngLat.lat, lngLat.lng);
 
                 setFormLocationCoords({ lat: lngLat.lat, lng: lngLat.lng, area: detectedArea });
                 console.log("Map clicked, new formLocationCoords:", {lat: lngLat.lat.toFixed(6), lng: lngLat.lng.toFixed(6), area: detectedArea});
@@ -417,8 +417,7 @@ export default function BinsTable() {
 
         // Validate required fields. Latitude, Longitude, and Area are now derived from map click
         if (!formData.bin_plate.trim() || !formData.label.trim() || !formData.status_id || !formData.c_id) {
-            // Replaced alert with error state
-            setError("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and ensure a location is selected on the map.");
+            alert("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and ensure a location is selected on the map.");
             return;
         }
 
@@ -446,9 +445,6 @@ export default function BinsTable() {
             setCurrentBin(null);
             setFormData(initialBinFormData); // Reset form
             setFormLocationCoords(null); // Clear map coords
-            setError(null); // Clear any previous errors
-            setSuccessMessage("Bin updated successfully!"); // Set success message
-            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to update bin: ${e.message}`);
@@ -524,26 +520,28 @@ export default function BinsTable() {
     // --- Modal Open/Close Handlers ---
 
     const openEditModal = (bin: Bin) => {
-        setFormData(initialBinFormData);
+        // Reset formData and formLocationCoords before setting new values
+        // This is a common pattern to ensure child components re-render with fresh props.
+        setFormData(initialBinFormData); 
         setFormLocationCoords(null);
 
         setCurrentBin(bin);
+        // Set initial form data including current bin's location and area
         setFormLocationCoords({
             lat: bin.Latitude,
             lng: bin.Longitude,
-            area: bin.Area,
+            area: bin.Area, // Populate area from existing bin data
         });
 
         const initialEditFormData = {
             bin_plate: bin.BinPlate,
-            label: bin.Location,
+            label: bin.Location, // Populate label from existing bin data
             status_id: binStatuses.find(s => s.status === bin.StatusName)?.status_id.toString() || "",
             c_id: bin.CustomerID
         };
         setFormData(initialEditFormData);
-        console.log("openEditModal: formData after setFormData:", initialEditFormData);
+        console.log("openEditModal: formData after setFormData:", initialEditFormData); // NEW LOG
         setIsEditModalOpen(true);
-        setError(null); // Clear error when opening modal
     };
 
     const openAddModal = () => {
@@ -622,19 +620,16 @@ export default function BinsTable() {
                 <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-                {/* Error message for bin form */}
-                {error && (isAddModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
-
                 {/* Map display for location selection */}
                 <div className="mb-4">
                     <Label className="block text-gray-700 text-sm font-bold mb-2">
                         Click on the map or drag the marker to set/change bin location:
                     </Label>
-                    <div
-                        className="w-full h-64 rounded-md overflow-hidden border border-gray-300"
-                        ref={mapContainerRef}
+                    <div 
+                        className="w-full h-64 rounded-md overflow-hidden border border-gray-300" 
+                        ref={mapContainerRef} 
                         // Added explicit min-width/min-height for debugging
-                        style={{ minWidth: '400px', minHeight: '300px' }}
+                        style={{ minWidth: '400px', minHeight: '300px' }} // Even more aggressive sizing for debugging
                     />
                     {!mapboxgl.accessToken ? (
                         <p className="text-red-500 text-xs mt-1">Mapbox Access Token is missing or invalid. Please check your environment configuration.</p>
@@ -650,28 +645,31 @@ export default function BinsTable() {
                 {/* Form fields */}
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="bin_plate" className="text-right">Bin Plate</Label>
-                    <Input
+                    {/* Using a standard HTML input directly for troubleshooting */}
+                    <input
                         id="bin_plate"
                         name="bin_plate"
-                        type="text"
+                        type="text" // Ensure type is text
                         value={formData.bin_plate}
                         onChange={handleInputChange}
-                        className="col-span-3" // Changed to use your Input component
+                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                 </div>
                 {/* Location Label input field */}
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="label" className="text-right">Location Label</Label>
-                    <Input
-                        id="label"
-                        name="label"
-                        type="text"
-                        value={formData.label}
-                        onChange={handleInputChange}
-                        className="col-span-3" // Changed to use your Input component
+                    {/* Using a standard HTML input directly for troubleshooting */}
+                    <input 
+                        id="label" 
+                        name="label" 
+                        type="text" // Ensure type is text
+                        value={formData.label} 
+                        onChange={handleInputChange} 
+                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                 </div>
-
+                {/* Latitude and Longitude input fields remain removed as they are now map-derived and displayed in info box */}
+                
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status_id" className="text-right">Status</Label>
                     <select
@@ -680,7 +678,6 @@ export default function BinsTable() {
                         value={formData.status_id}
                         onChange={handleSelectChange}
                         className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        required
                     >
                         <option value="">Select Status</option>
                         {binStatuses.map((status) => (
@@ -948,43 +945,93 @@ export default function BinsTable() {
                             <Table>
                                 <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                                     <TableRow>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">#</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bin Plate</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Latitude</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Longitude</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Area</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Customer Name</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Created At</TableCell>
-                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            #
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Bin Plate
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Location
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Latitude
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Longitude
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Area
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Status
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Customer Name
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Created At
+                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                                            Actions
+                                        </TableCell> {/* Consolidated Actions Header */}
                                     </TableRow>
                                 </TableHeader>
 
                                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                                     {binsData.map((bin, index) => (
                                         <TableRow key={bin.BinID}>
-                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{index + 1}</TableCell>
-                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{bin.BinPlate}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Location}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Latitude}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Longitude}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{areaNames[bin.Area as keyof typeof areaNames] || `Area ${bin.Area}`}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                                <Badge size="sm" color={bin.StatusName === "Active" ? "success" : "error"}>{bin.StatusName}</Badge>
+                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
+                                                {index + 1}
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.CustomerName || 'N/A'}</TableCell>
-                                            <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">{formatDateTime(bin.CreatedAt)}</TableCell>
+                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
+                                                {bin.BinPlate}
+                                            </TableCell>
                                             <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                                <Button variant="outline" size="sm" className="mr-2" onClick={() => openBinDetailsModal(bin)}>Details</Button>
-                                                <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>Edit</Button>
-                                                <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>Delete</Button>
+                                                {bin.Location}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                {bin.Latitude}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                {bin.Longitude}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                {areaNames[bin.Area as keyof typeof areaNames] || `Area ${bin.Area}`}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                <Badge
+                                                    size="sm"
+                                                    color={bin.StatusName === "Active" ? "success" : "error"}
+                                                >
+                                                    {bin.StatusName}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                {bin.CustomerName || 'N/A'}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                                                {formatDateTime(bin.CreatedAt)}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                {/* Consolidated Actions buttons with specific colors */}
+                                                <Button variant="outline" size="sm" className="mr-2" onClick={() => openBinDetailsModal(bin)}>
+                                                    Details
+                                                </Button>
+                                                <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>
+                                                    Edit
+                                                </Button>
+                                                <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>
+                                                    Delete
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {binsData.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">No bins found.</TableCell>
+                                            <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
+                                                No bins found.
+                                            </TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
