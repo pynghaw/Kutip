@@ -1,7 +1,7 @@
 'use client';
 
 import Button from "../ui/button/Button";
-import Input from "../form/input/InputField"; // Input might still be used for PlateNo
+import Input from "../form/input/InputField";
 import {
     Dialog,
     DialogContent,
@@ -12,7 +12,7 @@ import {
     DialogTrigger,
 } from "../ui/dialog/Dialog";
 import Label from "../form/Label";
-import React, { useEffect, useState, useRef, useCallback } from "react"; // Added useCallback and useRef
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
     Table,
     TableBody,
@@ -20,7 +20,6 @@ import {
     TableHeader,
     TableRow,
 } from "../ui/table";
-
 import Badge from "../ui/badge/Badge";
 
 // --- NEW INTERFACE FOR DRIVER DATA ---
@@ -30,31 +29,36 @@ interface Driver {
 }
 // --- END NEW INTERFACE ---
 
+// --- NEW INTERFACE FOR DRIVER FORM DATA ---
+interface DriverFormData {
+    d_name: string;
+}
+
+const initialDriverFormData: DriverFormData = {
+    d_name: "",
+};
+// --- END NEW INTERFACE ---
 
 // Define a type for the form data, EXCLUDING is_active
 interface TruckFormData {
     plate_no: string;
-    d_id: number | string; // Changed from driver_name to d_id, allow string for input (empty state)
-    // is_active is removed from form data
+    d_id: number | string;
 }
 
 interface Truck {
-    truck_id: number; // Primary key is now truck_id
+    truck_id: number;
     plate_no: string;
-    d_id: number; // The foreign key to the drivers table
-    DriverName: string | null; // The flattened driver name from the API join
-    is_active: boolean; // KEEP this here if you still display it in the table
+    d_id: number;
+    DriverName: string | null;
+    is_active: boolean;
     created_at: string;
 }
 
-// Initial form state for creating a new truck
 const initialTruckFormData: TruckFormData = {
     plate_no: "",
-    d_id: "", // Initialize as empty string for the select input
-    // is_active is removed from initial state
+    d_id: "",
 };
 
-// Helper function to format dates
 function formatDateTime(isoString: string | null): string {
     if (!isoString) return 'N/A';
     try {
@@ -81,20 +85,28 @@ export default function TrucksTable() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isShowDetailsModalOpen, setIsShowDetailsModalOpen] = useState(false); // State for details modal
-    const [truckDetailsToShow, setTruckDetailsToShow] = useState<Truck | null>(null); // State to hold truck for details modal
+    const [truckDetailsToShow, setTruckDetailsToShow] = useState<Truck | null>(null);
 
-    const [currentTruck, setCurrentTruck] = useState<Truck | null>(null); // For editing or deleting
+    const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
+    const [driverFormData, setDriverFormData] = useState<DriverFormData>(initialDriverFormData);
+
+    // --- NEW STATE FOR SUCCESS MODAL ---
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    // --- END NEW STATE ---
+
+
+    const [currentTruck, setCurrentTruck] = useState<Truck | null>(null);
     const [formData, setFormData] = useState<TruckFormData>(initialTruckFormData);
     const [trucksData, setTrucksData] = useState<Truck[]>([]);
-    const [drivers, setDrivers] = useState<Driver[]>([]); // --- NEW STATE FOR DRIVERS ---
+    const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchDataAndDrivers = useCallback(async () => { // Wrapped in useCallback
+    const fetchDataAndDrivers = useCallback(async () => {
         setLoading(true);
-        setError(null);
+        setError(null); // Clear error when fetching data
         try {
-            // --- FETCH TRUCKS DATA ---
             const trucksResponse = await fetch('/api/trucks');
             if (!trucksResponse.ok) {
                 throw new Error(`HTTP error fetching trucks! status: ${trucksResponse.status}`);
@@ -102,8 +114,7 @@ export default function TrucksTable() {
             const trucksData: Truck[] = await trucksResponse.json();
             setTrucksData(trucksData);
 
-            // --- FETCH DRIVERS DATA ---
-            const driversResponse = await fetch('/api/drivers'); // Call the new drivers API
+            const driversResponse = await fetch('/api/drivers');
             if (!driversResponse.ok) {
                 throw new Error(`HTTP error fetching drivers! status: ${driversResponse.status}`);
             }
@@ -119,29 +130,35 @@ export default function TrucksTable() {
         } finally {
             setLoading(false);
         }
-    }, []); // Empty dependency array means this function is created once
+    }, []);
 
     useEffect(() => {
         fetchDataAndDrivers();
-    }, [fetchDataAndDrivers]); // Depend on fetchDataAndDrivers
+    }, [fetchDataAndDrivers]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target; // Removed type and checked as is_active is gone
+        const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value,
         }));
     };
 
-    // --- NEW: Handle Change for Select (Dropdown) ---
+    const handleDriverInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setDriverFormData(prev => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: value, // Value will be the d_id (string)
+            [name]: value,
         }));
     };
-    // --- END NEW ---
 
     const handleCreateTruck = async () => {
         try {
@@ -150,24 +167,52 @@ export default function TrucksTable() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     PlateNo: formData.plate_no,
-                    DriverID: parseInt(formData.d_id as string), // Ensure it's parsed to a number
-                    // IsActive is removed from here
+                    DriverID: parseInt(formData.d_id as string),
                 }),
             });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
             }
-            // Re-fetch all trucks to get the updated list including the new truck's driver name
-            await fetchDataAndDrivers(); // Use the useCallback version
+            await fetchDataAndDrivers();
             setIsCreateModalOpen(false);
-            setFormData(initialTruckFormData); // Reset form
-            setError(null); // Clear previous errors
+            setFormData(initialTruckFormData);
+            setError(null);
+            setSuccessMessage("Truck created successfully!"); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to create truck: ${e.message}`);
             } else {
                 setError('An unknown error occurred while creating truck.');
+            }
+        }
+    };
+
+    const handleAddDriver = async () => {
+        try {
+            const response = await fetch('/api/drivers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    DriverName: driverFormData.d_name,
+                }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
+            }
+            await fetchDataAndDrivers();
+            setIsAddDriverModalOpen(false);
+            setDriverFormData(initialDriverFormData);
+            setError(null); // Clear previous errors on success
+            setSuccessMessage(`Driver "${driverFormData.d_name}" added successfully!`); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
+        } catch (e) {
+            if (e instanceof Error) {
+                setError(`Failed to add driver: ${e.message}`);
+            } else {
+                setError('An unknown error occurred while adding driver.');
             }
         }
     };
@@ -179,22 +224,21 @@ export default function TrucksTable() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    TruckID: currentTruck.truck_id, // Use truck_id here
+                    TruckID: currentTruck.truck_id,
                     PlateNo: formData.plate_no,
-                    DriverID: parseInt(formData.d_id as string), // Ensure it's parsed to a number
-                    // IsActive is removed from here
+                    DriverID: parseInt(formData.d_id as string),
                 }),
             });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
             }
-            // Re-fetch all trucks to get updated list including updated driver name
-            await fetchDataAndDrivers(); // Use the useCallback version
-
+            await fetchDataAndDrivers();
             setIsEditModalOpen(false);
             setCurrentTruck(null);
-            setError(null); // Clear previous errors
+            setError(null);
+            setSuccessMessage("Truck updated successfully!"); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to update truck: ${e.message}`);
@@ -209,16 +253,19 @@ export default function TrucksTable() {
             const response = await fetch('/api/trucks', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ TruckID: truckId }), // API expects TruckID, ensure this matches API
+                body: JSON.stringify({ TruckID: truckId }),
             });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
             }
-            setTrucksData(trucksData.filter(t => t.truck_id !== truckId)); // Filter by truck_id
+            // Instead of filtering, re-fetch to ensure data consistency
+            await fetchDataAndDrivers();
             setIsDeleteConfirmOpen(false);
             setCurrentTruck(null);
-            setError(null); // Clear previous errors
+            setError(null);
+            setSuccessMessage(`Truck ID ${truckId} deleted successfully!`); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to delete truck: ${e.message}`);
@@ -232,20 +279,18 @@ export default function TrucksTable() {
         setCurrentTruck(truck);
         setFormData({
             plate_no: truck.plate_no,
-            d_id: truck.d_id.toString(), // Convert d_id to string for the select's value
-            // is_active is removed from here
+            d_id: truck.d_id.toString(),
         });
         setIsEditModalOpen(true);
-        setError(null); // Clear previous errors when opening modal
+        setError(null);
     };
 
     const openDeleteConfirm = (truck: Truck) => {
         setCurrentTruck(truck);
         setIsDeleteConfirmOpen(true);
-        setError(null); // Clear previous errors
+        setError(null);
     };
 
-    // Function to open truck details modal
     const openTruckDetailsModal = (truck: Truck) => {
         setTruckDetailsToShow(truck);
         setIsShowDetailsModalOpen(true);
@@ -270,33 +315,22 @@ export default function TrucksTable() {
                     <Label htmlFor="d_id" className="text-right">
                         Driver Name
                     </Label>
-                    {/* --- MODIFIED: Replaced Input with Select for Driver ID --- */}
                     <select
                         id="d_id"
                         name="d_id"
-                        value={formData.d_id} // Controlled component: value from state
-                        onChange={handleSelectChange} // Use the new handleSelectChange
+                        value={formData.d_id}
+                        onChange={handleSelectChange}
                         className="col-span-3 border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        required // Make selection mandatory
+                        required
                     >
-                        <option value="" disabled>Select a driver</option> {/* Placeholder/default option */}
+                        <option value="" disabled>Select a driver</option>
                         {drivers.map((driver) => (
                             <option key={driver.d_id} value={driver.d_id}>
                                 {driver.d_name}
                             </option>
                         ))}
                     </select>
-                    {/* --- END MODIFIED --- */}
                 </div>
-                {/* --- REMOVED: IsActive Checkbox --- */}
-                {/*
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="is_active" className="text-right">
-                        Active
-                    </Label>
-                    <Input id="is_active" name="is_active" type="checkbox" checked={formData.is_active} onChange={handleInputChange} className="col-span-3 h-4 w-4" />
-                </div>
-                */}
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={closeHandler}>Cancel</Button>
@@ -305,17 +339,71 @@ export default function TrucksTable() {
         </>
     );
 
+    const renderDriverForm = (submitHandler: () => void, closeHandler: () => void) => (
+        <>
+            <DialogHeader>
+                <DialogTitle>Add New Driver</DialogTitle>
+                <DialogDescription>
+                    Enter the name of the new driver.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="d_name" className="text-right">
+                        Driver Name
+                    </Label>
+                    <Input
+                        id="d_name"
+                        name="d_name"
+                        value={driverFormData.d_name}
+                        onChange={handleDriverInputChange}
+                        className="col-span-3"
+                        required
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={closeHandler}>Cancel</Button>
+                <Button onClick={submitHandler}>Add Driver</Button>
+            </DialogFooter>
+        </>
+    );
+
+
     if (loading) {
         return <div className="p-4 text-center">Loading truck data...</div>;
     }
 
-    if (error && !isCreateModalOpen && !isEditModalOpen && !isDeleteConfirmOpen) {
+    if (error && !isCreateModalOpen && !isEditModalOpen && !isDeleteConfirmOpen && !isAddDriverModalOpen && !isSuccessModalOpen) {
         return <div className="p-4 text-center text-red-500">Error: {error}</div>;
     }
 
     return (
         <div className="p-4">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-end space-x-2"> {/* Added space-x-2 for button spacing */}
+                {/* --- NEW: Add Driver Button --- */}
+                <Dialog open={isAddDriverModalOpen} onOpenChange={(isOpen) => {
+                    setIsAddDriverModalOpen(isOpen);
+                    if (!isOpen) {
+                        setDriverFormData(initialDriverFormData); // Reset form when closing
+                        setError(null); // Clear errors when closing
+                    }
+                }}>
+                    <DialogTrigger asChild>
+                        <Button
+                            onClick={() => { setDriverFormData(initialDriverFormData); setError(null); setIsAddDriverModalOpen(true); }}
+                            className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800" // Brown color
+                        >
+                            Add Driver
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        {error && isAddDriverModalOpen && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+                        {renderDriverForm(handleAddDriver, () => { setIsAddDriverModalOpen(false); setError(null); setDriverFormData(initialDriverFormData); })}
+                    </DialogContent>
+                </Dialog>
+                {/* --- END NEW --- */}
+
                 <Dialog open={isCreateModalOpen} onOpenChange={(isOpen) => {
                     setIsCreateModalOpen(isOpen);
                     if (!isOpen) {
@@ -328,7 +416,7 @@ export default function TrucksTable() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                         {/* Show error inside modal if it's open */}
-                        {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+                        {error && (isCreateModalOpen || isEditModalOpen || isAddDriverModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
                         {renderTruckForm(handleCreateTruck, () => { setIsCreateModalOpen(false); setError(null); setFormData(initialTruckFormData); }, false)}
                     </DialogContent>
                 </Dialog>
@@ -338,13 +426,13 @@ export default function TrucksTable() {
             <Dialog open={isEditModalOpen} onOpenChange={(isOpen) => {
                 setIsEditModalOpen(isOpen);
                 if (!isOpen) {
-                    setCurrentTruck(null); // Clear current truck when closing
-                    setError(null); // Clear errors
+                    setCurrentTruck(null);
+                    setError(null);
                 }
             }}>
                 <DialogContent className="sm:max-w-[425px]">
                     {/* Show error inside modal if it's open */}
-                    {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+                    {error && (isCreateModalOpen || isEditModalOpen || isAddDriverModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
                     {currentTruck && renderTruckForm(handleUpdateTruck, () => { setIsEditModalOpen(false); setError(null); setCurrentTruck(null); }, true)}
                 </DialogContent>
             </Dialog>
@@ -403,8 +491,8 @@ export default function TrucksTable() {
             <Dialog open={isDeleteConfirmOpen} onOpenChange={(isOpen) => {
                 setIsDeleteConfirmOpen(isOpen);
                 if (!isOpen) {
-                    setCurrentTruck(null); // Clear current truck when closing
-                    setError(null); // Clear errors
+                    setCurrentTruck(null);
+                    setError(null);
                 }
             }}>
                 <DialogContent className="sm:max-w-[425px]">
@@ -421,6 +509,22 @@ export default function TrucksTable() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Success Confirmation Dialog */}
+            <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-green-600">Success!</DialogTitle>
+                        <DialogDescription>
+                            {successMessage}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={() => setIsSuccessModalOpen(false)}>Okay</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
             {trucksData.length === 0 && !loading && !error && (
                 <div className="p-4 text-center">No truck data available. Consider creating one.</div>

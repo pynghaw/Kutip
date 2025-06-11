@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function TrucksTables() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Trucks Table" />
+      <PageBreadcrumb pageTitle="Trucks Management" />
       <div className="space-y-6">
         
           <TrucksTable />

@@ -1,6 +1,7 @@
 'use client';
 
 import Button from "../ui/button/Button";
+import Input from "../form/input/InputField"; // Assuming InputField is suitable for text inputs
 import {
     Dialog,
     DialogContent,
@@ -8,6 +9,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from "../ui/dialog/Dialog";
 import Label from "../form/Label"; // Corrected import path for Label
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -19,12 +21,14 @@ import {
     TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
+import { useRouter } from "next/navigation"; // Make sure useRouter is imported if not already
 
 // Mapbox GL JS imports
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Set Mapbox access token directly for Canvas environment
+// Ensure NEXT_PUBLIC_MAPBOX_TOKEN is correctly set in your .env.local file
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 // --- INTERFACES ---
@@ -42,7 +46,6 @@ interface Bin {
     Area: number; // Added Area to Bin interface
 }
 
-// Updated BinFormData: re-added label, removed latitude, longitude
 interface BinFormData {
     bin_plate: string;
     label: string; // Re-added for user input
@@ -53,7 +56,22 @@ interface BinFormData {
 interface Customer {
     c_id: number;
     c_name: string;
+    // Assuming you'll fetch this from the API or manage it for display
+    // If you need the address here for display in other parts, add it
+    // address?: string;
 }
+
+// --- NEW INTERFACE FOR CUSTOMER FORM DATA ---
+interface CustomerFormData {
+    customer_name: string;
+    customer_address: string;
+}
+
+const initialCustomerFormData: CustomerFormData = {
+    customer_name: "",
+    customer_address: "",
+};
+// --- END NEW INTERFACE ---
 
 interface BinStatus {
     status_id: number;
@@ -100,6 +118,17 @@ export default function BinsTable() {
     const [isShowDetailsModalOpen, setIsShowDetailsModalOpen] = useState(false); // State for details modal
     const [binDetailsToShow, setBinDetailsToShow] = useState<Bin | null>(null); // State to hold bin for details modal
 
+    // --- NEW STATE FOR ADD CUSTOMER MODAL ---
+    const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+    const [customerFormData, setCustomerFormData] = useState<CustomerFormData>(initialCustomerFormData);
+    // --- END NEW STATE ---
+
+    // --- NEW STATE FOR SUCCESS MODAL ---
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    // --- END NEW STATE ---
+
+
     const [currentBin, setCurrentBin] = useState<Bin | null>(null);
     const [formData, setFormData] = useState<BinFormData>(initialBinFormData);
     const [binsData, setBinsData] = useState<Bin[]>([]);
@@ -138,7 +167,7 @@ export default function BinsTable() {
     // Function to fetch all necessary data (bins, customers, statuses)
     const fetchAllData = useCallback(async () => {
         setLoading(true);
-        setError(null);
+        setError(null); // Clear previous errors when re-fetching
         try {
             const [binsResponse, customersResponse, statusesResponse] = await Promise.all([
                 fetch('/api/bins'),
@@ -286,7 +315,7 @@ export default function BinsTable() {
             // Add map click listener
             map.on('click', (e) => {
                 const lngLat = e.lngLat;
-                const detectedArea = getAreaFromCoords(lngLat.lat, lngLat.lng);
+                const detectedArea = getAreaFromCoords(lngLat.lat, lngLat.lat); // Fixed: Should be lngLat.lng for longitude
 
                 setFormLocationCoords({ lat: lngLat.lat, lng: lngLat.lng, area: detectedArea });
                 console.log("Map clicked, new formLocationCoords:", {lat: lngLat.lat.toFixed(6), lng: lngLat.lng.toFixed(6), area: detectedArea});
@@ -323,8 +352,9 @@ export default function BinsTable() {
         };
 
         // If a modal is open, attempt to initialize the map after a short delay
+        // Only initialize map if it's the add/edit bin modal
         if (isAddModalOpen || isEditModalOpen) {
-            console.log("Modal opened. Scheduling map initialization...");
+            console.log("Bin Add/Edit Modal opened. Scheduling map initialization...");
             mapInitTimeout = setTimeout(() => {
                 initializeMap();
             }, 500); // Increased delay
@@ -336,14 +366,15 @@ export default function BinsTable() {
         // Cleanup function for useEffect (runs on unmount or before re-run)
         return cleanupMap;
 
-    }, [isAddModalOpen, isEditModalOpen, formLocationCoords, getAreaFromCoords, centerLat, centerLng]); 
+    }, [isAddModalOpen, isEditModalOpen, formLocationCoords, getAreaFromCoords, centerLat, centerLng]);
 
     // --- CRUD Operations ---
 
     const handleCreateBin = async () => {
         // Validate required fields. Latitude, Longitude, and Area are now derived from map click
         if (!formData.bin_plate.trim() || !formData.label.trim() || !formData.status_id || !formData.c_id || !formLocationCoords) {
-            alert("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and select a location on the map.");
+            // Replaced alert with error state
+            setError("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and select a location on the map.");
             return;
         }
 
@@ -369,6 +400,9 @@ export default function BinsTable() {
             setIsAddModalOpen(false);
             setFormData(initialBinFormData); // Reset form
             setFormLocationCoords(null); // Clear map coords
+            setError(null); // Clear any previous errors
+            setSuccessMessage("Bin created successfully!"); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to create bin: ${e.message}`);
@@ -383,7 +417,8 @@ export default function BinsTable() {
 
         // Validate required fields. Latitude, Longitude, and Area are now derived from map click
         if (!formData.bin_plate.trim() || !formData.label.trim() || !formData.status_id || !formData.c_id) {
-            alert("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and ensure a location is selected on the map.");
+            // Replaced alert with error state
+            setError("Please fill in all required fields (Bin Plate, Location Label, Status, Customer) and ensure a location is selected on the map.");
             return;
         }
 
@@ -411,6 +446,9 @@ export default function BinsTable() {
             setCurrentBin(null);
             setFormData(initialBinFormData); // Reset form
             setFormLocationCoords(null); // Clear map coords
+            setError(null); // Clear any previous errors
+            setSuccessMessage("Bin updated successfully!"); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to update bin: ${e.message}`);
@@ -431,9 +469,12 @@ export default function BinsTable() {
                 const errorData = await response.json();
                 throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
             }
-            setBinsData(binsData.filter(b => b.BinID !== binID));
+            await fetchAllData(); // Re-fetch to update the table after deletion
             setIsDeleteConfirmOpen(false);
             setCurrentBin(null);
+            setError(null); // Clear any previous errors
+            setSuccessMessage(`Bin ID ${binID} deleted successfully!`); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
         } catch (e) {
             if (e instanceof Error) {
                 setError(`Failed to delete bin: ${e.message}`);
@@ -443,46 +484,96 @@ export default function BinsTable() {
         }
     }
 
+    // --- NEW: handleAddCustomer function ---
+    const handleAddCustomer = async () => {
+        // Validate required fields
+        if (!customerFormData.customer_name.trim() || !customerFormData.customer_address.trim()) {
+            setError("Please fill in both Customer Name and Address.");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/customers', { // Assuming your customer API route is /api/customers
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    CustomerName: customerFormData.customer_name,
+                    CustomerAddress: customerFormData.customer_address,
+                }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
+            }
+            await fetchAllData(); // Re-fetch all data to update the customers dropdown
+            setIsAddCustomerModalOpen(false);
+            setCustomerFormData(initialCustomerFormData); // Reset form
+            setError(null); // Clear previous errors on success
+            setSuccessMessage(`Customer "${customerFormData.customer_name}" added successfully!`); // Set success message
+            setIsSuccessModalOpen(true); // Open success modal
+        } catch (e) {
+            if (e instanceof Error) {
+                setError(`Failed to add customer: ${e.message}`);
+            } else {
+                setError('An unknown error occurred while adding customer.');
+            }
+        }
+    };
+    // --- END NEW ---
+
     // --- Modal Open/Close Handlers ---
 
     const openEditModal = (bin: Bin) => {
-        // Reset formData and formLocationCoords before setting new values
-        // This is a common pattern to ensure child components re-render with fresh props.
-        setFormData(initialBinFormData); 
+        setFormData(initialBinFormData);
         setFormLocationCoords(null);
 
         setCurrentBin(bin);
-        // Set initial form data including current bin's location and area
         setFormLocationCoords({
             lat: bin.Latitude,
             lng: bin.Longitude,
-            area: bin.Area, // Populate area from existing bin data
+            area: bin.Area,
         });
 
         const initialEditFormData = {
             bin_plate: bin.BinPlate,
-            label: bin.Location, // Populate label from existing bin data
+            label: bin.Location,
             status_id: binStatuses.find(s => s.status === bin.StatusName)?.status_id.toString() || "",
             c_id: bin.CustomerID
         };
         setFormData(initialEditFormData);
-        console.log("openEditModal: formData after setFormData:", initialEditFormData); // NEW LOG
+        console.log("openEditModal: formData after setFormData:", initialEditFormData);
         setIsEditModalOpen(true);
+        setError(null); // Clear error when opening modal
     };
 
     const openAddModal = () => {
-        setCurrentBin(null); // Ensure no bin is currently selected for editing
-        setFormData(initialBinFormData); // Reset form for new entry
-        setFormLocationCoords(null); // Clear any old coordinates for the map
+        setCurrentBin(null);
+        setFormData(initialBinFormData);
+        setFormLocationCoords(null);
         setIsAddModalOpen(true);
+        setError(null); // Clear error when opening modal
+    };
+
+    // --- NEW: openAddCustomerModal handler ---
+    const openAddCustomerModal = () => {
+        setCustomerFormData(initialCustomerFormData); // Reset form for new customer
+        setIsAddCustomerModalOpen(true);
+        setError(null); // Clear error when opening modal
+    };
+    // --- END NEW ---
+
+    const router = useRouter();
+
+    const handleNavigateToMap = () => {
+        router.push("/map");
     };
 
     const openDeleteConfirm = (bin: Bin) => {
         setCurrentBin(bin);
         setIsDeleteConfirmOpen(true);
+        setError(null); // Clear error when opening modal
     };
 
-    // Function to open bin details modal
     const openBinDetailsModal = (bin: Bin) => {
         setBinDetailsToShow(bin);
         setIsShowDetailsModalOpen(true);
@@ -497,6 +588,16 @@ export default function BinsTable() {
             [name]: value,
         }));
     };
+
+    // --- NEW: handleCustomerInputChange for customer modal ---
+    const handleCustomerInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setCustomerFormData(prev => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+    // --- END NEW ---
 
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -521,16 +622,19 @@ export default function BinsTable() {
                 <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+                {/* Error message for bin form */}
+                {error && (isAddModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+
                 {/* Map display for location selection */}
                 <div className="mb-4">
                     <Label className="block text-gray-700 text-sm font-bold mb-2">
                         Click on the map or drag the marker to set/change bin location:
                     </Label>
-                    <div 
-                        className="w-full h-64 rounded-md overflow-hidden border border-gray-300" 
-                        ref={mapContainerRef} 
+                    <div
+                        className="w-full h-64 rounded-md overflow-hidden border border-gray-300"
+                        ref={mapContainerRef}
                         // Added explicit min-width/min-height for debugging
-                        style={{ minWidth: '400px', minHeight: '300px' }} // Even more aggressive sizing for debugging
+                        style={{ minWidth: '400px', minHeight: '300px' }}
                     />
                     {!mapboxgl.accessToken ? (
                         <p className="text-red-500 text-xs mt-1">Mapbox Access Token is missing or invalid. Please check your environment configuration.</p>
@@ -546,31 +650,28 @@ export default function BinsTable() {
                 {/* Form fields */}
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="bin_plate" className="text-right">Bin Plate</Label>
-                    {/* Using a standard HTML input directly for troubleshooting */}
-                    <input
+                    <Input
                         id="bin_plate"
                         name="bin_plate"
-                        type="text" // Ensure type is text
+                        type="text"
                         value={formData.bin_plate}
                         onChange={handleInputChange}
-                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        className="col-span-3" // Changed to use your Input component
                     />
                 </div>
                 {/* Location Label input field */}
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="label" className="text-right">Location Label</Label>
-                    {/* Using a standard HTML input directly for troubleshooting */}
-                    <input 
-                        id="label" 
-                        name="label" 
-                        type="text" // Ensure type is text
-                        value={formData.label} 
-                        onChange={handleInputChange} 
-                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    <Input
+                        id="label"
+                        name="label"
+                        type="text"
+                        value={formData.label}
+                        onChange={handleInputChange}
+                        className="col-span-3" // Changed to use your Input component
                     />
                 </div>
-                {/* Latitude and Longitude input fields remain removed as they are now map-derived and displayed in info box */}
-                
+
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status_id" className="text-right">Status</Label>
                     <select
@@ -579,6 +680,7 @@ export default function BinsTable() {
                         value={formData.status_id}
                         onChange={handleSelectChange}
                         className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        required
                     >
                         <option value="">Select Status</option>
                         {binStatuses.map((status) => (
@@ -613,16 +715,106 @@ export default function BinsTable() {
         </>
     );
 
+    // --- NEW: renderCustomerForm function ---
+    const renderCustomerForm = (submitHandler: () => void, closeHandler: () => void) => (
+        <>
+            <DialogHeader>
+                <DialogTitle>Add New Customer</DialogTitle>
+                <DialogDescription>
+                    Enter the name and address for the new customer.
+                </DialogDescription>
+            </DialogHeader>
+            {/* Error message for customer form */}
+            {error && isAddCustomerModalOpen && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="customer_name" className="text-right">
+                        Customer Name
+                    </Label>
+                    <Input
+                        id="customer_name"
+                        name="customer_name"
+                        value={customerFormData.customer_name}
+                        onChange={handleCustomerInputChange}
+                        className="col-span-3"
+                        required
+                    />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="customer_address" className="text-right">
+                        Address
+                    </Label>
+                    <Input
+                        id="customer_address"
+                        name="customer_address"
+                        value={customerFormData.customer_address}
+                        onChange={handleCustomerInputChange}
+                        className="col-span-3"
+                        required
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={closeHandler}>Cancel</Button>
+                <Button onClick={submitHandler}>Add Customer</Button>
+            </DialogFooter>
+        </>
+    );
+    // --- END NEW ---
+
+
+    if (loading) {
+        return <div className="p-4 text-center">Loading bin data...</div>;
+    }
+
+    // Consolidated error display logic: show general error if no specific modal is open
+    if (error && !isAddModalOpen && !isEditModalOpen && !isDeleteConfirmOpen && !isAddCustomerModalOpen && !isSuccessModalOpen) {
+        return <div className="p-4 text-center text-red-500">Error: {error}</div>;
+    }
+
     return (
         <div className="p-4">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-end space-x-3"> {/* Use space-x-3 for consistent spacing */}
+                <button
+                    onClick={handleNavigateToMap}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                >
+                    Map View
+                </button>
+
+                {/* --- NEW: Add Customer Button and Dialog --- */}
+                <Dialog open={isAddCustomerModalOpen} onOpenChange={(isOpen) => {
+                    setIsAddCustomerModalOpen(isOpen);
+                    if (!isOpen) {
+                        setCustomerFormData(initialCustomerFormData); // Reset form on close
+                        setError(null); // Clear errors on close
+                    }
+                }}>
+                    <DialogTrigger asChild>
+                        <Button
+                            onClick={openAddCustomerModal}
+                            className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800" // Brown color
+                        >
+                            Add Customer
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        {renderCustomerForm(handleAddCustomer, () => {
+                            setIsAddCustomerModalOpen(false);
+                            setCustomerFormData(initialCustomerFormData);
+                            setError(null);
+                        })}
+                    </DialogContent>
+                </Dialog>
+                {/* --- END NEW --- */}
+
                 <Button onClick={openAddModal}>Add Bin</Button> {/* Add Bin button */}
             </div>
 
             {/* Edit Bin Dialog */}
-            {/* Moved key to DialogContent to force remount of modal content */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogContent className="sm:max-w-[500px]" key={isEditModalOpen ? "edit-modal-open" : "edit-modal-closed"}> {/* Added key here */}
+                <DialogContent className="sm:max-w-[500px]" key={isEditModalOpen ? "edit-modal-open" : "edit-modal-closed"}>
                     {currentBin && renderBinForm(
                         handleUpdateBin,
                         () => setIsEditModalOpen(false),
@@ -634,9 +826,8 @@ export default function BinsTable() {
             </Dialog>
 
             {/* Add Bin Dialog */}
-            {/* Moved key to DialogContent to force remount of modal content */}
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                <DialogContent className="sm:max-w-[500px]" key={isAddModalOpen ? "add-modal-open" : "add-modal-closed"}> {/* Added key here */}
+                <DialogContent className="sm:max-w-[500px]" key={isAddModalOpen ? "add-modal-open" : "add-modal-closed"}>
                     {renderBinForm(
                         handleCreateBin,
                         () => setIsAddModalOpen(false),
@@ -696,7 +887,7 @@ export default function BinsTable() {
                                 </div>
                                 <div className="grid grid-cols-2 items-center gap-4">
                                     <Label className="text-right">Area:</Label>
-                                    <span>{areaNames[binDetailsToShow.Area as keyof typeof areaNames]} ({binDetailsToShow.Area})</span>
+                                    <span>{areaNames[binDetailsToShow.Area as keyof typeof areaNames] || `Area ${binDetailsToShow.Area}`}</span>
                                 </div>
                                 <div className="grid grid-cols-2 items-center gap-4">
                                     <Label className="text-right">Created At:</Label>
@@ -722,6 +913,7 @@ export default function BinsTable() {
                             Are you sure you want to delete bin &quot;{currentBin?.Location}&quot; (ID: {currentBin?.BinID}, Plate: {currentBin?.BinPlate})? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
+                    {error && isDeleteConfirmOpen && <div className="my-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
                         <Button variant="destructive" size="sm" onClick={() => { if (currentBin) handleDeleteBin(currentBin.BinID); setIsDeleteConfirmOpen(false); }}>Delete</Button>
@@ -729,107 +921,78 @@ export default function BinsTable() {
                 </DialogContent>
             </Dialog>
 
-            {/* Main Bins Table */}
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-                <div className="max-w-full overflow-x-auto">
-                    <div className="min-w-[1102px]">
-                        <Table>
-                            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
-                                <TableRow>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        #
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Bin Plate
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Location
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Latitude
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Longitude
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Area
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Status
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Customer Name
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Created At
-                                    </TableCell>
-                                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                                        Actions
-                                    </TableCell> {/* Consolidated Actions Header */}
-                                </TableRow>
-                            </TableHeader>
+            {/* Success Confirmation Dialog */}
+            <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-green-600">Success!</DialogTitle>
+                        <DialogDescription>
+                            {successMessage}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={() => setIsSuccessModalOpen(false)}>Okay</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                            <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                                {binsData.map((bin, index) => (
-                                    <TableRow key={bin.BinID}>
-                                        <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
-                                            {index + 1}
-                                        </TableCell>
-                                        <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">
-                                            {bin.BinPlate}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {bin.Location}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {bin.Latitude}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {bin.Longitude}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {areaNames[bin.Area as keyof typeof areaNames] || `Area ${bin.Area}`}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            <Badge
-                                                size="sm"
-                                                color={bin.StatusName === "Active" ? "success" : "error"}
-                                            >
-                                                {bin.StatusName}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {bin.CustomerName || 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                                            {formatDateTime(bin.CreatedAt)}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                            {/* Consolidated Actions buttons with specific colors */}
-                                            <Button variant="outline" size="sm" className="mr-2" onClick={() => openBinDetailsModal(bin)}>
-                                                Details
-                                            </Button>
-                                            <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>
-                                                Edit
-                                            </Button>
-                                            <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>
-                                                Delete
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {binsData.length === 0 && (
+
+            {binsData.length === 0 && !loading && !error && (
+                <div className="p-4 text-center">No bin data available. Consider creating one.</div>
+            )}
+
+            {binsData.length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+                    <div className="max-w-full overflow-x-auto">
+                        <div className="min-w-[1102px]">
+                            <Table>
+                                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                                     <TableRow>
-                                        <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
-                                            No bins found.
-                                        </TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">#</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bin Plate</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Latitude</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Longitude</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Area</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Customer Name</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Created At</TableCell>
+                                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+
+                                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                                    {binsData.map((bin, index) => (
+                                        <TableRow key={bin.BinID}>
+                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{index + 1}</TableCell>
+                                            <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{bin.BinPlate}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Location}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Latitude}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.Longitude}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{areaNames[bin.Area as keyof typeof areaNames] || `Area ${bin.Area}`}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                <Badge size="sm" color={bin.StatusName === "Active" ? "success" : "error"}>{bin.StatusName}</Badge>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{bin.CustomerName || 'N/A'}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">{formatDateTime(bin.CreatedAt)}</TableCell>
+                                            <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                                                <Button variant="outline" size="sm" className="mr-2" onClick={() => openBinDetailsModal(bin)}>Details</Button>
+                                                <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>Edit</Button>
+                                                <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>Delete</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {binsData.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">No bins found.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

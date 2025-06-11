@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function BinsTables() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Bins Table" />
+      <PageBreadcrumb pageTitle="Bins Details" />
       <div className="space-y-6">        
           <BinsTable />        
       </div>

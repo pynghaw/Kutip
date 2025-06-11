@@ -47,19 +47,19 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Bins", path: "/bins-tables", pro: false },
       { name: "Trucks", path: "/trucks-tables", pro: false },
-      { name: "Truck Assignment", path: "/assign-tables", pro: false },
-      { name: "Pickups", path: "/pickup-tables", pro: false },
+      /*{ name: "Truck Assignment", path: "/assign-tables", pro: false },
+      { name: "Pickups", path: "/pickup-tables", pro: false },*/
     ],
   },
   
 ];
 
 const othersItems: NavItem[] = [
-  {
+  /*{
     name: "Forms",
     icon: <ListIcon />,
     subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
+  },*/
   {
     icon: <CalenderIcon />,
     name: "Calendar",
@@ -78,7 +78,7 @@ const othersItems: NavItem[] = [
       { name: "Bar Chart", path: "/bar-chart", pro: false },
     ],
   },
-  {
+  /*{
     icon: <BoxCubeIcon />,
     name: "UI Elements",
     subItems: [
@@ -89,7 +89,7 @@ const othersItems: NavItem[] = [
       { name: "Images", path: "/images", pro: false },
       { name: "Videos", path: "/videos", pro: false },
     ],
-  },
+  },*/
   {
     icon: <PlugInIcon />,
     name: "Authentication",
@@ -310,37 +310,37 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
-        }`}
-      >
+        className={`py-8 flex  ${
+          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+        }`}
+      >
         <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
-          )}
-        </Link>
+          {isExpanded || isHovered || isMobileOpen ? (
+            <>
+              <Image
+                className="dark:hidden"
+                src="/images/logo/treom-full-logo.png" // Corrected path for full logo
+                alt="Treom Logo"
+                width={150}
+                height={40}
+              />
+              <Image
+                className="hidden dark:block"
+                src="/images/logo/treom-full-logo-dark.png" // Corrected path for dark full logo
+                alt="Treom Logo Dark"
+                width={150}
+                height={40}
+              />
+            </>
+          ) : (
+            <Image
+              src="/images/logo/treom-icon.png" // Path for icon is correct here
+              alt="Treom Icon"
+              width={32}
+              height={32}
+            />
+          )}
+        </Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
