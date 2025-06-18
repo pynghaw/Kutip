@@ -17,6 +17,7 @@ import {
   TableIcon,
   UserCircleIcon,
 } from "../icons/index";
+import { CameraIcon } from "lucide-react";
 //import SidebarWidget from "./SidebarWidget";
 
 type NavItem = {
@@ -32,6 +33,11 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/",
   }, 
+  {
+    icon: <CameraIcon />,
+    name: "Camera",
+    path: "/camera",
+  },
    {
     name: "Map/Scheduling",
     icon: <CalenderIcon />,
