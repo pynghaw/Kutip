@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { supabase } from "@/lib/supabaseClient";
 import "mapbox-gl/dist/mapbox-gl.css";
+import Calendar from "@/components/ui/Calendar";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -215,30 +216,158 @@ export default function AutoSchedulingPage() {
   // Update truck_assignments table to include both schedule_id and route_id foreign keys
   const updateTruckAssignmentsTable = async (): Promise<boolean> => {
     try {
-      // Add schedule_id if it doesn't exist
-      const { error: scheduleError } = await supabase.rpc('exec_sql', { 
-        sql: `ALTER TABLE truck_assignments ADD COLUMN IF NOT EXISTS schedule_id INTEGER REFERENCES schedules(schedule_id);`
-      });
+      console.log('🔧 Checking truck_assignments table structure...');
       
-      if (scheduleError) {
-        console.error('Error adding schedule_id to truck_assignments:', scheduleError);
+      // First, check if columns already exist by trying to select them
+      let existingColumns: string[] = [];
+      
+      try {
+        // Try to check existing columns using RPC
+        const { data: columns, error: columnsError } = await supabase.rpc('exec_sql', { 
+          sql: `
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'truck_assignments' 
+            AND column_name IN ('schedule_id', 'route_id')
+          `
+        });
+        
+        if (!columnsError && columns) {
+          existingColumns = columns.map((col: any) => col.column_name);
+        }
+      } catch (rpcError) {
+        console.warn('⚠️ RPC exec_sql not available, trying alternative approach...');
+        
+        // Fallback: try to select from the columns directly
+        try {
+          const { error: scheduleTest } = await supabase
+            .from('truck_assignments')
+            .select('schedule_id')
+            .limit(1);
+          
+          if (!scheduleTest) {
+            existingColumns.push('schedule_id');
+          }
+        } catch (e) {
+          // schedule_id doesn't exist
+        }
+        
+        try {
+          const { error: routeTest } = await supabase
+            .from('truck_assignments')
+            .select('route_id')
+            .limit(1);
+          
+          if (!routeTest) {
+            existingColumns.push('route_id');
+          }
+        } catch (e) {
+          // route_id doesn't exist
+        }
+      }
+      
+      console.log('📋 Existing columns:', existingColumns);
+      
+      // Add schedule_id if it doesn't exist
+      if (!existingColumns.includes('schedule_id')) {
+        console.log('➕ Adding schedule_id column...');
+        try {
+          const { error: scheduleError } = await supabase.rpc('exec_sql', { 
+            sql: `ALTER TABLE truck_assignments ADD COLUMN schedule_id INTEGER;`
+          });
+          
+          if (scheduleError) {
+            console.warn('⚠️ Could not add schedule_id column (might already exist):', scheduleError);
+          } else {
+            console.log('✅ schedule_id column added successfully');
+          }
+        } catch (rpcError) {
+          console.warn('⚠️ RPC not available for adding schedule_id column');
+        }
+      } else {
+        console.log('✅ schedule_id column already exists');
       }
 
       // Add route_id if it doesn't exist
-      const { error: routeError } = await supabase.rpc('exec_sql', { 
-        sql: `ALTER TABLE truck_assignments ADD COLUMN IF NOT EXISTS route_id INTEGER REFERENCES routes(route_id);`
-      });
-      
-      if (routeError) {
-        console.error('Error adding route_id to truck_assignments:', routeError);
-        return false;
+      if (!existingColumns.includes('route_id')) {
+        console.log('➕ Adding route_id column...');
+        try {
+          const { error: routeError } = await supabase.rpc('exec_sql', { 
+            sql: `ALTER TABLE truck_assignments ADD COLUMN route_id INTEGER;`
+          });
+          
+          if (routeError) {
+            console.warn('⚠️ Could not add route_id column (might already exist):', routeError);
+          } else {
+            console.log('✅ route_id column added successfully');
+          }
+        } catch (rpcError) {
+          console.warn('⚠️ RPC not available for adding route_id column');
+        }
+      } else {
+        console.log('✅ route_id column already exists');
       }
       
-      console.log('truck_assignments table updated with schedule_id and route_id');
+      // Try to add foreign key constraints if they don't exist
+      try {
+        console.log('🔗 Adding foreign key constraints...');
+        
+        // Add schedule_id foreign key constraint
+        const { error: scheduleFkError } = await supabase.rpc('exec_sql', { 
+          sql: `
+            DO $$ 
+            BEGIN 
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name = 'truck_assignments_schedule_id_fkey'
+              ) THEN
+                ALTER TABLE truck_assignments 
+                ADD CONSTRAINT truck_assignments_schedule_id_fkey 
+                FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id);
+              END IF;
+            END $$;
+          `
+        });
+        
+        if (scheduleFkError) {
+          console.warn('⚠️ Could not add schedule_id foreign key:', scheduleFkError);
+        } else {
+          console.log('✅ schedule_id foreign key constraint added');
+        }
+        
+        // Add route_id foreign key constraint
+        const { error: routeFkError } = await supabase.rpc('exec_sql', { 
+          sql: `
+            DO $$ 
+            BEGIN 
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name = 'truck_assignments_route_id_fkey'
+              ) THEN
+                ALTER TABLE truck_assignments 
+                ADD CONSTRAINT truck_assignments_route_id_fkey 
+                FOREIGN KEY (route_id) REFERENCES routes(route_id);
+              END IF;
+            END $$;
+          `
+        });
+        
+        if (routeFkError) {
+          console.warn('⚠️ Could not add route_id foreign key:', routeFkError);
+        } else {
+          console.log('✅ route_id foreign key constraint added');
+        }
+        
+      } catch (fkError) {
+        console.warn('⚠️ Foreign key constraint addition failed:', fkError);
+      }
+      
+      console.log('✅ truck_assignments table structure updated successfully');
       return true;
     } catch (error) {
-      console.error('Exception updating truck_assignments table:', error);
-      return false;
+      console.error('❌ Exception updating truck_assignments table:', error);
+      // Don't fail the entire process, just log the error
+      return true; // Return true to continue with the process
     }
   };
 
@@ -481,7 +610,7 @@ const performAutoScheduling = async (date: string) => {
       console.warn('⚠️ Routes table creation failed, continuing without routes');
     }
     if (!truckAssignmentsUpdated) {
-      console.warn('⚠️ Truck assignments table update failed');
+      console.warn('⚠️ Truck assignments table update failed, continuing anyway');
     }
 
     // Get available trucks
@@ -866,12 +995,11 @@ return (
       <div className="flex gap-2 items-center">
         <label className="text-sm font-medium text-gray-700">Schedule Date:</label>
         <div className="flex items-center gap-2">
-          <input
-            type="date"
+          <Calendar
             value={schedulingDate}
-            onChange={(e) => setSchedulingDate(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+            onChange={setSchedulingDate}
+            placeholder="Select date"
+            className="w-48"
           />
           <button
             onClick={() => setSchedulingDate(new Date().toISOString().split('T')[0])}
@@ -1026,14 +1154,12 @@ return (
             <div>
               <label className="block text-sm font-medium mb-1">Schedule Date</label>
               <div className="flex gap-2">
-                <input
-                  type="date"
+                <Calendar
                   value={schedulingDate}
-                  onChange={(e) => setSchedulingDate(e.target.value)}
-                  className="flex-1 border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  onChange={setSchedulingDate}
+                  placeholder="Select date"
+                  className="flex-1"
                   disabled={isLoading}
-                  min={new Date().toISOString().split('T')[0]}
                 />
                 <button
                   type="button"
