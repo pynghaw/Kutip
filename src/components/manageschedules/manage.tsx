@@ -351,7 +351,7 @@ export default function ManageSchedulePage() {
           >
             <option value="">All Status</option>
             <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
+            <option value="active">Active</option>
             <option value="completed">Completed</option>
           </select>
         </div>
