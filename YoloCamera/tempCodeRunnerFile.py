@@ -1,0 +1,2 @@
+
+model = YOLO("weights.pt")
