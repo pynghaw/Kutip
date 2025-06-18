@@ -83,8 +83,12 @@ export default function AutoSchedulingPage() {
 
   // Set today's date by default
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setSchedulingDate(today);
+    const todayDate = new Date();
+    const year = todayDate.getFullYear();
+    const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+    const day = String(todayDate.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    setSchedulingDate(todayString);
   }, []);
 
   // Area definitions based on coordinates
@@ -1084,7 +1088,14 @@ return (
             className="w-48"
           />
           <button
-            onClick={() => setSchedulingDate(new Date().toISOString().split('T')[0])}
+            onClick={() => {
+              const todayDate = new Date();
+              const year = todayDate.getFullYear();
+              const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+              const day = String(todayDate.getDate()).padStart(2, '0');
+              const todayString = `${year}-${month}-${day}`;
+              setSchedulingDate(todayString);
+            }}
             className="px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             title="Set to today"
           >
@@ -1102,7 +1113,13 @@ return (
           <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
           <span>Date: {new Date(schedulingDate).toLocaleDateString()}</span>
         </div>
-        {schedulingDate === new Date().toISOString().split('T')[0] && (
+        {schedulingDate === (() => {
+          const todayDate = new Date();
+          const year = todayDate.getFullYear();
+          const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+          const day = String(todayDate.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })() && (
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
             <span className="text-orange-600 font-medium">Today</span>
@@ -1260,7 +1277,14 @@ return (
                 />
                 <button
                   type="button"
-                  onClick={() => setSchedulingDate(new Date().toISOString().split('T')[0])}
+                  onClick={() => {
+                    const todayDate = new Date();
+                    const year = todayDate.getFullYear();
+                    const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(todayDate.getDate()).padStart(2, '0');
+                    const todayString = `${year}-${month}-${day}`;
+                    setSchedulingDate(todayString);
+                  }}
                   className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm"
                   disabled={isLoading}
                 >
@@ -1268,7 +1292,13 @@ return (
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {schedulingDate === new Date().toISOString().split('T')[0] 
+                {schedulingDate === (() => {
+                  const todayDate = new Date();
+                  const year = todayDate.getFullYear();
+                  const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(todayDate.getDate()).padStart(2, '0');
+                  return `${year}-${month}-${day}`;
+                })() 
                   ? "✅ Set to today's date" 
                   : `Selected: ${new Date(schedulingDate).toLocaleDateString()}`
                 }

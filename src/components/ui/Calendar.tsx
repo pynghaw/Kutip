@@ -70,7 +70,12 @@ export default function Calendar({
   const handleDateSelect = (date: Date) => {
     if (date < today) return; // Prevent selecting past dates
     
-    const dateString = date.toISOString().split('T')[0];
+    // Format date in local timezone to avoid UTC conversion issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
     onChange(dateString);
     setIsOpen(false);
   };
@@ -84,7 +89,13 @@ export default function Calendar({
   };
 
   const goToToday = () => {
-    const todayString = today.toISOString().split('T')[0];
+    // Format today's date in local timezone to avoid UTC conversion issues
+    const todayDate = new Date();
+    const year = todayDate.getFullYear();
+    const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+    const day = String(todayDate.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    
     onChange(todayString);
     setCurrentMonth(new Date());
     setIsOpen(false);

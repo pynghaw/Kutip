@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation"; // Add this import
 import { supabase } from "@/lib/supabaseClient";
+import Calendar from "@/components/ui/Calendar";
 
 type Bin = {
   bin_id: number;
@@ -323,12 +324,21 @@ export default function ManageSchedulePage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Filter by Date
           </label>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex gap-2">
+            <Calendar
+              value={filterDate}
+              onChange={setFilterDate}
+              placeholder="Select date to filter"
+              className="flex-1"
+            />
+            <button
+              onClick={() => setFilterDate('')}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+              title="Clear date filter"
+            >
+              Clear
+            </button>
+          </div>
         </div>
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -341,7 +351,7 @@ export default function ManageSchedulePage() {
           >
             <option value="">All Status</option>
             <option value="pending">Pending</option>
-            <option value="active">Active</option>
+            <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
         </div>
