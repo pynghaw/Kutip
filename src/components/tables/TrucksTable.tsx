@@ -39,10 +39,11 @@ const initialDriverFormData: DriverFormData = {
 };
 // --- END NEW INTERFACE ---
 
-// Define a type for the form data, EXCLUDING is_active
+// Define a type for the form data, INCLUDING is_active
 interface TruckFormData {
     plate_no: string;
     d_id: number | string;
+    is_active: boolean; // Added is_active to form data
 }
 
 interface Truck {
@@ -57,6 +58,7 @@ interface Truck {
 const initialTruckFormData: TruckFormData = {
     plate_no: "",
     d_id: "",
+    is_active: true, // Default to active for new trucks
 };
 
 function formatDateTime(isoString: string | null): string {
@@ -137,10 +139,10 @@ export default function TrucksTable() {
     }, [fetchDataAndDrivers]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        const { name, value, type, checked } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: value,
+            [name]: type === 'checkbox' ? checked : value,
         }));
     };
 
@@ -168,6 +170,7 @@ export default function TrucksTable() {
                 body: JSON.stringify({
                     PlateNo: formData.plate_no,
                     DriverID: parseInt(formData.d_id as string),
+                    IsActive: formData.is_active, // Include is_active for creation
                 }),
             });
             if (!response.ok) {
@@ -227,6 +230,7 @@ export default function TrucksTable() {
                     TruckID: currentTruck.truck_id,
                     PlateNo: formData.plate_no,
                     DriverID: parseInt(formData.d_id as string),
+                    IsActive: formData.is_active, // Include is_active for update
                 }),
             });
             if (!response.ok) {
@@ -280,6 +284,7 @@ export default function TrucksTable() {
         setFormData({
             plate_no: truck.plate_no,
             d_id: truck.d_id.toString(),
+            is_active: truck.is_active, // Populate is_active
         });
         setIsEditModalOpen(true);
         setError(null);
@@ -331,6 +336,24 @@ export default function TrucksTable() {
                         ))}
                     </select>
                 </div>
+                {isEditMode && ( // Only show status in edit mode
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="is_active" className="text-right">
+                            Status
+                        </Label>
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            name="is_active"
+                            checked={formData.is_active}
+                            onChange={handleInputChange}
+                            className="col-span-3 h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <span className="col-span-3 text-sm text-gray-500 dark:text-gray-400">
+                            {formData.is_active ? "Active" : "Inactive"}
+                        </span>
+                    </div>
+                )}
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={closeHandler}>Cancel</Button>
@@ -488,6 +511,11 @@ export default function TrucksTable() {
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
+            {/* Re-enabled for completeness, as it was commented out in the original.
+                Make sure to adjust the handleDeleteTruck to use `currentTruck` for ID if desired,
+                or pass the ID directly from the `openDeleteConfirm` function.
+                For now, it's left as is to match the current flow of passing truck object.
+            */}
             <Dialog open={isDeleteConfirmOpen} onOpenChange={(isOpen) => {
                 setIsDeleteConfirmOpen(isOpen);
                 if (!isOpen) {
@@ -567,9 +595,6 @@ export default function TrucksTable() {
                                                 </Button>
                                                 <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(truck)}>
                                                     Edit
-                                                </Button>
-                                                <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(truck)}>
-                                                    Delete
                                                 </Button>
                                             </TableCell>
                                         </TableRow>

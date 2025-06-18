@@ -901,7 +901,7 @@ export default function BinsTable() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Confirmation Dialog 
             <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -916,7 +916,7 @@ export default function BinsTable() {
                         <Button variant="destructive" size="sm" onClick={() => { if (currentBin) handleDeleteBin(currentBin.BinID); setIsDeleteConfirmOpen(false); }}>Delete</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog>*/}
 
             {/* Success Confirmation Dialog */}
             <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
@@ -1020,9 +1020,6 @@ export default function BinsTable() {
                                                 </Button>
                                                 <Button className="bg-green-600 text-white hover:bg-green-700 mr-2" size="sm" onClick={() => openEditModal(bin)}>
                                                     Edit
-                                                </Button>
-                                                <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(bin)}>
-                                                    Delete
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
