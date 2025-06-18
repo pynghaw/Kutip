@@ -519,44 +519,133 @@ export default function AutoSchedulingPage() {
     setMarkers(newMarkers);
   }, [bins, mapLoaded, selectedArea, assignments, schedulingDate]);
 
-  // Auto-optimize route using nearest neighbor algorithm
-  const optimizeRoute = (binIds: number[]): number[] => {
-    if (binIds.length <= 1) return binIds;
-
-    const selectedBins = bins.filter(bin => binIds.includes(bin.bin_id));
-    const optimized = [selectedBins[0].bin_id];
-    const remaining = selectedBins.slice(1);
-
-    while (remaining.length > 0) {
-      const lastBin = bins.find(b => b.bin_id === optimized[optimized.length - 1])!;
-      
-      let nearestIndex = 0;
-      let shortestDistance = getDistance(
-        lastBin.latitude, lastBin.longitude,
-        remaining[0].latitude, remaining[0].longitude
-      );
-
-      for (let i = 1; i < remaining.length; i++) {
-        const distance = getDistance(
-          lastBin.latitude, lastBin.longitude,
-          remaining[i].latitude, remaining[i].longitude
-        );
-        if (distance < shortestDistance) {
-          shortestDistance = distance;
-          nearestIndex = i;
-        }
-      }
-
-      optimized.push(remaining[nearestIndex].bin_id);
-      remaining.splice(nearestIndex, 1);
+  // K-Means clustering algorithm for better bin distribution
+  const kMeansClustering = (bins: Bin[], k: number, maxIterations: number = 100): Bin[][] => {
+    if (bins.length === 0 || k === 0) return [];
+    
+    // Initialize centroids randomly
+    let centroids = bins.slice(0, k).map(bin => ({
+      lat: bin.latitude,
+      lng: bin.longitude
+    }));
+    
+    // If we have fewer bins than trucks, pad with the first bin
+    while (centroids.length < k) {
+      centroids.push({
+        lat: bins[0].latitude,
+        lng: bins[0].longitude
+      });
     }
-
-    return optimized;
+    
+    let clusters: Bin[][] = Array(k).fill(null).map(() => []);
+    let iterations = 0;
+    
+    while (iterations < maxIterations) {
+      // Reset clusters
+      clusters = Array(k).fill(null).map(() => []);
+      
+      // Assign each bin to nearest centroid
+      bins.forEach(bin => {
+        let minDistance = Infinity;
+        let bestCluster = 0;
+        
+        centroids.forEach((centroid, index) => {
+          const distance = getDistance(bin.latitude, bin.longitude, centroid.lat, centroid.lng);
+          if (distance < minDistance) {
+            minDistance = distance;
+            bestCluster = index;
+          }
+        });
+        
+        clusters[bestCluster].push(bin);
+      });
+      
+      // Update centroids
+      const newCentroids = clusters.map(cluster => {
+        if (cluster.length === 0) {
+          return { lat: centerLat, lng: centerLng }; // Default to center if cluster is empty
+        }
+        
+        const avgLat = cluster.reduce((sum, bin) => sum + bin.latitude, 0) / cluster.length;
+        const avgLng = cluster.reduce((sum, bin) => sum + bin.longitude, 0) / cluster.length;
+        
+        return { lat: avgLat, lng: avgLng };
+      });
+      
+      // Check for convergence
+      const centroidsChanged = newCentroids.some((newCentroid, index) => {
+        const oldCentroid = centroids[index];
+        return getDistance(newCentroid.lat, newCentroid.lng, oldCentroid.lat, oldCentroid.lng) > 0.001;
+      });
+      
+      if (!centroidsChanged) break;
+      
+      centroids = newCentroids;
+      iterations++;
+    }
+    
+    return clusters;
   };
 
-  // Calculate distance between two points
+  // Optimize route within a cluster using 2-opt algorithm
+  const optimizeRoute2Opt = (bins: Bin[]): Bin[] => {
+    if (bins.length <= 2) return bins;
+    
+    let bestRoute = [...bins];
+    let bestDistance = calculateTotalDistance(bestRoute);
+    let improved = true;
+    
+    while (improved) {
+      improved = false;
+      
+      for (let i = 0; i < bins.length - 1; i++) {
+        for (let j = i + 2; j < bins.length; j++) {
+          // Try 2-opt swap
+          const newRoute = [...bestRoute];
+          const temp = newRoute[i + 1];
+          newRoute[i + 1] = newRoute[j];
+          newRoute[j] = temp;
+          
+          const newDistance = calculateTotalDistance(newRoute);
+          
+          if (newDistance < bestDistance) {
+            bestRoute = newRoute;
+            bestDistance = newDistance;
+            improved = true;
+          }
+        }
+      }
+    }
+    
+    return bestRoute;
+  };
+
+  // Calculate total distance of a route
+  const calculateTotalDistance = (bins: Bin[]): number => {
+    if (bins.length <= 1) return 0;
+    
+    let totalDistance = 0;
+    
+    // Distance from center to first bin
+    totalDistance += getDistance(centerLat, centerLng, bins[0].latitude, bins[0].longitude);
+    
+    // Distance between bins
+    for (let i = 0; i < bins.length - 1; i++) {
+      totalDistance += getDistance(
+        bins[i].latitude, bins[i].longitude,
+        bins[i + 1].latitude, bins[i + 1].longitude
+      );
+    }
+    
+    // Distance from last bin back to center
+    totalDistance += getDistance(centerLat, centerLng, bins[bins.length - 1].latitude, bins[bins.length - 1].longitude);
+    
+    return totalDistance;
+  };
+
+  // Calculate distance between two points using Haversine formula
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371;
+    const R = 6371; // Earth's radius in kilometers
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -567,6 +656,17 @@ export default function AutoSchedulingPage() {
     return R * c;
   };
 
+  // Enhanced route optimization using multiple algorithms
+  const optimizeRoute = (binIds: number[]): number[] => {
+    if (binIds.length <= 1) return binIds;
+
+    const selectedBins = bins.filter(bin => binIds.includes(bin.bin_id));
+    
+    // Use 2-opt optimization
+    const optimizedBins = optimizeRoute2Opt(selectedBins);
+    
+    return optimizedBins.map(bin => bin.bin_id);
+  };
 
   // Handle truck selection
   const handleTruckSelection = (truckId: number) => {
@@ -726,17 +826,10 @@ const performAutoScheduling = async (date: string) => {
     // Step 2: Create routes FIRST, then assignments with route_id
     console.log('📋 Creating routes first...');
     
-    // Group bins by area for better distribution
-    const binsByArea = unassignedBins.reduce((acc, bin) => {
-      const area = bin.area || 'Unknown';
-      if (!acc[area]) acc[area] = [];
-      acc[area].push(bin);
-      return acc;
-    }, {} as Record<string, Bin[]>);
-
-    const totalBins = unassignedBins.length;
-    const binsPerTruck = Math.ceil(totalBins / selectedTruckObjects.length);
-
+    // Use K-Means clustering for better bin distribution
+    const unassignedBinsArray = Array.from(unassignedBins);
+    const clusters = kMeansClustering(unassignedBinsArray, selectedTruckObjects.length);
+    
     // Prepare route data and assignments
     const routeCreationData: Array<{
       route: Omit<Route, 'route_id'>;
@@ -744,24 +837,12 @@ const performAutoScheduling = async (date: string) => {
       truck: Truck;
     }> = [];
 
-    // Distribute bins among trucks and prepare route data
-    for (let i = 0; i < selectedTruckObjects.length; i++) {
+    // Assign clusters to trucks
+    for (let i = 0; i < selectedTruckObjects.length && i < clusters.length; i++) {
       const truck = selectedTruckObjects[i];
+      const clusterBins = clusters[i];
       
-      // Prioritize bins in truck's assigned area
-      const truckAreaBins = binsByArea[truck.assigned_area] || [];
-      const otherAreaBins = Object.entries(binsByArea)
-        .filter(([area]) => area !== truck.assigned_area)
-        .flatMap(([, bins]) => bins);
-
-      const availableBins = [...truckAreaBins, ...otherAreaBins]
-        .filter(bin => !routeCreationData.some(rcd => 
-          rcd.truckBins.some(tb => tb.bin_id === bin.bin_id)
-        ));
-
-      const truckBins = availableBins.slice(0, Math.min(binsPerTruck, availableBins.length));
-
-      if (truckBins.length === 0) continue;
+      if (clusterBins.length === 0) continue;
 
       // Create route record
       const route: Omit<Route, 'route_id'> = {
@@ -769,11 +850,11 @@ const performAutoScheduling = async (date: string) => {
         truck_id: truck.truck_id,
         scheduled_date: date,
         status: 'pending', // Routes should also start as pending
-        total_bins: truckBins.length,
+        total_bins: clusterBins.length,
         schedule_id: scheduleId,
       };
 
-      routeCreationData.push({ route, truckBins, truck });
+      routeCreationData.push({ route, truckBins: clusterBins, truck });
     }
 
     // Step 3: Insert routes and get their IDs
@@ -850,7 +931,7 @@ const performAutoScheduling = async (date: string) => {
     console.log("✅ Assignments created successfully with schedule_id and route_id:", newAssignments.length);
 
     // Success message
-    const remainingBins = totalBins - newAssignments.length;
+    const remainingBins = unassignedBins.length - newAssignments.length;
     let successMessage = `🎉 Auto-scheduling completed!\n\n`;
     successMessage += `📊 Summary:\n`;
     successMessage += `• Schedule ID: ${scheduleId} ✅\n`;
@@ -1261,9 +1342,9 @@ return (
             <div className="bg-blue-50 p-3 rounded-md text-sm">
               <p><strong>Auto-scheduling will:</strong></p>
               <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>Distribute unassigned bins among {selectedTrucks.length || 'selected'} trucks</li>
-                <li>Prioritize bins in each truck's assigned area</li>
-                <li>Optimize routes for efficiency using nearest neighbor algorithm</li>
+                <li>Use K-Means clustering to group nearby bins efficiently</li>
+                <li>Assign optimized clusters to selected trucks</li>
+                <li>Apply 2-opt algorithm for optimal route within each cluster</li>
                 <li>Create assignments and routes in the database</li>
               </ul>
               {selectedTrucks.length > 0 && (
@@ -1277,9 +1358,7 @@ return (
                     ).length}
                   </p>
                   <p className="text-xs">
-                    • Bins per truck: ~{Math.ceil(bins.filter(bin => 
-                      !assignments.some(a => a.bin_id === bin.bin_id && a.scheduled_date === schedulingDate)
-                    ).length / selectedTrucks.length)}
+                    • Clusters: {selectedTrucks.length} (one per truck)
                   </p>
                   <p className="text-xs">
                     • Selected trucks: {selectedTrucks.length}
