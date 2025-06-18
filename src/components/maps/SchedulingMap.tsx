@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import mapboxgl from "mapbox-gl";
 import { supabase } from "@/lib/supabaseClient";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -1147,9 +1148,24 @@ return (
 
     {/* Auto Schedule Form */}
     {showAutoScheduleForm && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg w-[600px] max-w-full mx-4 max-h-[80vh] overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">🤖 Auto Schedule Routes</h2>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 9999999 }}>
+        <div className="bg-white p-6 rounded-lg w-[600px] max-w-full mx-4 max-h-[80vh] overflow-y-auto relative">
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setShowAutoScheduleForm(false);
+              setSelectedTrucks([]);
+            }}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            disabled={isLoading}
+            title="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <h2 className="text-xl font-bold mb-4 pr-8">🤖 Auto Schedule Routes</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Schedule Date</label>
@@ -1314,7 +1330,7 @@ return (
 
     {/* Loading Overlay */}
     {isLoading && (
-      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40">
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center" style={{ zIndex: 9999998 }}>
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
