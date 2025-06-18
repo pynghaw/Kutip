@@ -1,4 +1,4 @@
-import CameraViewer from "@/components/CameraViewer"
+import CameraViewer from "@/components/camera/CameraViewer"
 import UserAddressCard from "@/components/user-profile/UserAddressCard"
 import UserInfoCard    from "@/components/user-profile/UserInfoCard"
 import UserMetaCard    from "@/components/user-profile/UserMetaCard"
