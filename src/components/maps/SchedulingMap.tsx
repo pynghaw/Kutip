@@ -277,11 +277,11 @@ export default function AutoSchedulingPage() {
       if (!existingColumns.includes('schedule_id')) {
         console.log('➕ Adding schedule_id column...');
         try {
-          const { error: scheduleError } = await supabase.rpc('exec_sql', { 
+      const { error: scheduleError } = await supabase.rpc('exec_sql', { 
             sql: `ALTER TABLE truck_assignments ADD COLUMN schedule_id INTEGER;`
-          });
-          
-          if (scheduleError) {
+      });
+      
+      if (scheduleError) {
             console.warn('⚠️ Could not add schedule_id column (might already exist):', scheduleError);
           } else {
             console.log('✅ schedule_id column added successfully');
@@ -297,11 +297,11 @@ export default function AutoSchedulingPage() {
       if (!existingColumns.includes('route_id')) {
         console.log('➕ Adding route_id column...');
         try {
-          const { error: routeError } = await supabase.rpc('exec_sql', { 
+      const { error: routeError } = await supabase.rpc('exec_sql', { 
             sql: `ALTER TABLE truck_assignments ADD COLUMN route_id INTEGER;`
-          });
-          
-          if (routeError) {
+      });
+      
+      if (routeError) {
             console.warn('⚠️ Could not add route_id column (might already exist):', routeError);
           } else {
             console.log('✅ route_id column added successfully');
@@ -833,7 +833,7 @@ const performAutoScheduling = async (date: string) => {
     // Use K-Means clustering for better bin distribution
     const unassignedBinsArray = Array.from(unassignedBins);
     const clusters = kMeansClustering(unassignedBinsArray, selectedTruckObjects.length);
-    
+
     // Prepare route data and assignments
     const routeCreationData: Array<{
       route: Omit<Route, 'route_id'>;
