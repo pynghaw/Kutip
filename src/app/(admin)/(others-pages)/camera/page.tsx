@@ -13,12 +13,7 @@ export const metadata: Metadata = {
 export default function Profile() {
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border p-5 bg-white dark:bg-gray-900">
-        <h3 className="mb-5 text-lg font-semibold">Profile</h3>
-        <UserMetaCard />
-        <UserInfoCard />
-        <UserAddressCard />
-      </div>
+      
 
       {/* New section for live camera */}
       <div className="rounded-2xl border p-5 bg-white dark:bg-gray-900">
