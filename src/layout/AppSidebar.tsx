@@ -16,6 +16,7 @@ import {
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  GroupIcon,
 } from "../icons/index";
 import { CameraIcon } from "lucide-react";
 //import SidebarWidget from "./SidebarWidget";
@@ -75,6 +76,11 @@ const othersItems: NavItem[] = [
     icon: <UserCircleIcon />,
     name: "User Profile",
     path: "/profile",
+  },
+  {
+    icon: <GroupIcon />,
+    name: "User Management",
+    path: "/user-management",
   },
   {
     icon: <PieChartIcon />,
