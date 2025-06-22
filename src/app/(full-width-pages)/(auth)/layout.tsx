@@ -25,12 +25,20 @@ export default function AuthLayout({
                   <Image
                     width={231}
                     height={48}
-                    src="./images/logo/auth-logo.svg"
-                    alt="Logo"
+                    src="/images/logo/treom-full-logo.png"
+                    alt="Treom Logo"
+                    className="dark:hidden"
+                  />
+                  <Image
+                    width={231}
+                    height={48}
+                    src="/images/logo/treom-full-logo-dark.png"
+                    alt="Treom Logo"
+                    className="hidden dark:block"
                   />
                 </Link>
                 <p className="text-center text-gray-400 dark:text-white/60">
-                  Free and Open-Source Tailwind CSS Admin Dashboard Template
+                  Treom Bin Waste Collection: Efficiently Managing Waste, Sustainably.
                 </p>
               </div>
             </div>
