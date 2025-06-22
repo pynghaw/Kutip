@@ -59,7 +59,11 @@ export default function SignInForm() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store user data in localStorage (you might want to use a more secure method)
+      // Store user data in cookies for middleware compatibility
+      document.cookie = `user=${JSON.stringify(data.user)}; path=/; max-age=86400`; // 24 hours
+      document.cookie = `isLoggedIn=true; path=/; max-age=86400`; // 24 hours
+
+      // Also store in localStorage for client-side access
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('isLoggedIn', 'true');
 
@@ -67,7 +71,7 @@ export default function SignInForm() {
       if (data.user.role === 'admin') {
         router.push('/'); // Admin dashboard
       } else if (data.user.role === 'driver') {
-        router.push('/driver'); // Driver dashboard (you'll need to create this)
+        router.push('/driver'); // Driver dashboard
       } else {
         router.push('/'); // Default to main dashboard
       }
@@ -81,15 +85,6 @@ export default function SignInForm() {
 
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full">
-      <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
-        <Link
-          href="/"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-        >
-          <ChevronLeftIcon />
-          Back to dashboard
-        </Link>
-      </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
