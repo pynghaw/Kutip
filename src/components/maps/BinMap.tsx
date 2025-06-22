@@ -217,8 +217,17 @@ export default function BinMap() {
     markers.forEach((marker) => marker.remove());
     const newMarkers: mapboxgl.Marker[] = []; // Array to store newly created markers
 
-    // Filter bins based on the selected area filter
-    const filteredBins = areaFilter ? bins.filter(bin => bin.area === areaFilter) : bins;
+    // Filter bins based on the selected area filter AND active status only
+    const filteredBins = bins.filter(bin => {
+      // First filter by area if areaFilter is set
+      const areaMatch = areaFilter ? bin.area === areaFilter : true;
+      
+      // Then filter by active status
+      const status = statuses.find((s) => s.status_id === bin.status_id)?.status || "Unknown";
+      const isActive = status.toLowerCase() === "active";
+      
+      return areaMatch && isActive;
+    });
 
     // Iterate over filtered bins and create a marker for each
     filteredBins.forEach((bin) => {
@@ -325,13 +334,26 @@ export default function BinMap() {
 
       {/* Bin Count Display */}
       <div className="absolute z-10 top-16 left-4 bg-white px-3 py-1 rounded-md shadow-sm border text-sm">
-        {areaFilter ? (
-          <span>
-            Showing {bins.filter(bin => bin.area === areaFilter).length} bins in {areaNames[areaFilter]}
-          </span>
-        ) : (
-          <span>Showing {bins.length} bins (All Areas)</span>
-        )}
+        {(() => {
+          // Calculate active bins count
+          const activeBins = bins.filter(bin => {
+            const status = statuses.find((s) => s.status_id === bin.status_id)?.status || "Unknown";
+            return status.toLowerCase() === "active";
+          });
+          
+          // Filter by area if areaFilter is set
+          const filteredActiveBins = areaFilter 
+            ? activeBins.filter(bin => bin.area === areaFilter)
+            : activeBins;
+          
+          return areaFilter ? (
+            <span>
+              Showing {filteredActiveBins.length} active bins in {areaNames[areaFilter]}
+            </span>
+          ) : (
+            <span>Showing {filteredActiveBins.length} active bins (All Areas)</span>
+          );
+        })()}
       </div>
 
       {/* Area Legend */}

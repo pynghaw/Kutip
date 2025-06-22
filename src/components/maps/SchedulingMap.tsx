@@ -13,10 +13,11 @@ type Bin = {
   label: string;
   latitude: number;
   longitude: number;
-  status: number;
+  status_id: number;
   c_id: number;
   bin_plate: string;
   area: string;
+  status_name?: string; // Add status name for display
 };
 
 type Truck = {
@@ -379,12 +380,21 @@ export default function AutoSchedulingPage() {
   // Fetch data functions
   const fetchBins = async () => {
     try {
-      const { data, error } = await supabase.from("bins").select("*");
+      // Join with bin_status table to get status information and filter for active bins only
+      const { data, error } = await supabase
+        .from("bins")
+        .select(`
+          *,
+          bin_status!inner(status)
+        `)
+        .eq('bin_status.status', 'Active');
+      
       if (error) throw error;
       
       const binsWithArea = (data || []).map(bin => ({
         ...bin,
-        area: getAreaFromCoordinates(bin.latitude, bin.longitude)
+        area: getAreaFromCoordinates(bin.latitude, bin.longitude),
+        status_name: bin.bin_status?.status || 'Unknown'
       }));
       setBins(binsWithArea);
     } catch (error) {
@@ -1086,6 +1096,7 @@ return (
             onChange={setSchedulingDate}
             placeholder="Select date"
             className="w-48"
+            preventPastDates={false}
           />
           <button
             onClick={() => {
@@ -1107,7 +1118,7 @@ return (
       <div className="flex items-center gap-4 text-sm text-gray-600 bg-white px-3 py-2 rounded-md border">
         <div className="flex items-center gap-1">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          <span>Showing: {selectedArea ? bins.filter(b => b.area === selectedArea).length : bins.length} bins</span>
+          <span>Showing: {selectedArea ? bins.filter(b => b.area === selectedArea).length : bins.length} active bins</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -1196,7 +1207,7 @@ return (
           <h4 className="text-sm font-semibold mb-2">Statistics for {new Date(schedulingDate).toLocaleDateString()}</h4>
           <div className="space-y-1 text-xs text-gray-600">
             <div className="flex justify-between">
-              <span>Total Bins:</span>
+              <span>Active Bins:</span>
               <span className="font-medium">{bins.length}</span>
             </div>
             <div className="flex justify-between">
@@ -1274,6 +1285,7 @@ return (
                   placeholder="Select date"
                   className="flex-1"
                   disabled={isLoading}
+                  preventPastDates={true}
                 />
                 <button
                   type="button"
@@ -1372,6 +1384,7 @@ return (
             <div className="bg-blue-50 p-3 rounded-md text-sm">
               <p><strong>Auto-scheduling will:</strong></p>
               <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Only schedule bins with "Active" status</li>
                 <li>Use K-Means clustering to group nearby bins efficiently</li>
                 <li>Assign optimized clusters to selected trucks</li>
                 <li>Apply 2-opt algorithm for optimal route within each cluster</li>
@@ -1383,7 +1396,7 @@ return (
                     📊 Estimated Distribution for {new Date(schedulingDate).toLocaleDateString()}:
                   </p>
                   <p className="text-xs mt-1">
-                    • Unassigned bins: {bins.filter(bin => 
+                    • Unassigned active bins: {bins.filter(bin => 
                       !assignments.some(a => a.bin_id === bin.bin_id && a.scheduled_date === schedulingDate)
                     ).length}
                   </p>

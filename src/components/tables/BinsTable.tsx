@@ -729,12 +729,13 @@ export default function BinsTable() {
                     <Label htmlFor="customer_name" className="text-right">
                         Customer Name
                     </Label>
-                    <Input
+                    <input
                         id="customer_name"
                         name="customer_name"
+                        type="text"
                         value={customerFormData.customer_name}
                         onChange={handleCustomerInputChange}
-                        className="col-span-3"
+                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         required
                     />
                 </div>
@@ -742,12 +743,13 @@ export default function BinsTable() {
                     <Label htmlFor="customer_address" className="text-right">
                         Address
                     </Label>
-                    <Input
+                    <input
                         id="customer_address"
                         name="customer_address"
+                        type="text"
                         value={customerFormData.customer_address}
                         onChange={handleCustomerInputChange}
-                        className="col-span-3"
+                        className="col-span-3 border border-gray-300 rounded-md p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         required
                     />
                 </div>
@@ -1026,9 +1028,9 @@ export default function BinsTable() {
                                     ))}
                                     {binsData.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
+                                            <td colSpan={10} className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
                                                 No bins found.
-                                            </TableCell>
+                                            </td>
                                         </TableRow>
                                     )}
                                 </TableBody>

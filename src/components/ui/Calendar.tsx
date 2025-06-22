@@ -7,6 +7,7 @@ interface CalendarProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  preventPastDates?: boolean;
 }
 
 export default function Calendar({ 
@@ -14,7 +15,8 @@ export default function Calendar({
   onChange, 
   placeholder = "Select date", 
   className = "",
-  disabled = false 
+  disabled = false,
+  preventPastDates = true
 }: CalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -68,7 +70,7 @@ export default function Calendar({
   };
 
   const handleDateSelect = (date: Date) => {
-    if (date < today) return; // Prevent selecting past dates
+    if (preventPastDates && date < today) return; // Only prevent past dates if preventPastDates is true
     
     // Format date in local timezone to avoid UTC conversion issues
     const year = date.getFullYear();
@@ -199,10 +201,10 @@ export default function Calendar({
               <button
                 key={index}
                 onClick={() => handleDateSelect(day.date)}
-                disabled={day.isPast}
+                disabled={day.isPast && preventPastDates}
                 className={`
                   w-8 h-8 text-sm rounded-full flex items-center justify-center
-                  ${day.isPast 
+                  ${day.isPast && preventPastDates 
                     ? 'text-gray-300 cursor-not-allowed' 
                     : 'hover:bg-gray-100 cursor-pointer'
                   }
@@ -218,11 +220,13 @@ export default function Calendar({
           </div>
 
           {/* Footer */}
-          <div className="p-2 border-t bg-gray-50 rounded-b-lg">
-            <div className="text-xs text-gray-500 text-center">
-              Past dates are disabled
+          {preventPastDates && (
+            <div className="p-2 border-t bg-gray-50 rounded-b-lg">
+              <div className="text-xs text-gray-500 text-center">
+                Past dates are disabled
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
