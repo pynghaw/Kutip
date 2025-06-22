@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // Add this import
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Calendar from "@/components/ui/Calendar";
 
@@ -37,7 +37,6 @@ type Route = {
   route_name: string;
   truck_id: number;
   scheduled_date: string;
-//  estimated_duration: number;
   status: 'pending' | 'in_progress' | 'completed';
   total_bins?: number;
   schedule_id?: number;
@@ -60,8 +59,8 @@ type ScheduleDetails = Schedule & {
   assignments: (TruckAssignment & { bin: Bin | null; truck: Truck | null })[];
 };
 
-export default function ManageSchedulePage() {
-  const router = useRouter(); // Add router hook
+export default function DriverManageSchedulePage() {
+  const router = useRouter();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails[]>([]);
   const [bins, setBins] = useState<Bin[]>([]);
@@ -69,11 +68,24 @@ export default function ManageSchedulePage() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [assignments, setAssignments] = useState<TruckAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'created'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Get current driver's user ID
+  const getCurrentDriverId = () => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        return user.user_id;
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+    return null;
+  };
 
   // Fetch all data
   const fetchData = async () => {
@@ -189,71 +201,9 @@ export default function ManageSchedulePage() {
     fetchData();
   }, []);
 
-  // Navigation function
+  // Navigation function - only view details
   const handleViewDetails = (scheduleId: number) => {
-    // Check if user is a driver
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        if (user.role === 'driver') {
-          // Redirect to driver schedule details
-          router.push(`/driver/scheduledetail?id=${scheduleId}`);
-          return;
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-    
-    // Default to admin schedule details
-    router.push(`/scheduledetail?id=${scheduleId}`);
-  };
-
-  // Delete schedule and related data
-  const deleteSchedule = async (scheduleId: number) => {
-    try {
-      setLoading(true);
-
-      // Delete in order: assignments -> routes -> schedule
-      const { error: assignmentError } = await supabase
-        .from('truck_assignments')
-        .delete()
-        .eq('schedule_id', scheduleId);
-
-      if (assignmentError) {
-        console.warn('Error deleting assignments:', assignmentError);
-      }
-
-      const { error: routeError } = await supabase
-        .from('routes')
-        .delete()
-        .eq('schedule_id', scheduleId);
-
-      if (routeError) {
-        console.warn('Error deleting routes:', routeError);
-      }
-
-      const { error: scheduleError } = await supabase
-        .from('schedules')
-        .delete()
-        .eq('schedule_id', scheduleId);
-
-      if (scheduleError) {
-        alert(`Error deleting schedule: ${scheduleError.message}`);
-        return;
-      }
-
-      alert('Schedule deleted successfully!');
-      await fetchData();
-      setDeleteConfirm(null);
-
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-      alert('Failed to delete schedule');
-    } finally {
-      setLoading(false);
-    }
+    router.push(`/driver/scheduledetail?id=${scheduleId}`);
   };
 
   // Filter and sort schedules
@@ -320,9 +270,9 @@ export default function ManageSchedulePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manage Schedules</h1>
+          <h1 className="text-2xl font-bold text-gray-900">My Schedules</h1>
           <p className="text-sm text-gray-600 mt-1">
-            View and manage waste collection schedules
+            View your assigned waste collection schedules
           </p>
         </div>
         <div className="text-sm text-gray-500">
@@ -457,18 +407,12 @@ export default function ManageSchedulePage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {schedule.total_routes}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleViewDetails(schedule.schedule_id!)}
                       className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
                     >
                       View Details
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(schedule.schedule_id!)}
-                      className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors"
-                    >
-                      Delete
                     </button>
                   </td>
                 </tr>
@@ -477,35 +421,6 @@ export default function ManageSchedulePage() {
           </tbody>
         </table>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Confirm Deletion
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this schedule? This action will also delete all associated routes and assignments and cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteSchedule(deleteConfirm)}
-                disabled={loading}
-                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Deleting...' : 'Delete Schedule'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-}
+} 
