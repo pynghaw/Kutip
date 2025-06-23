@@ -389,17 +389,14 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
   const pendingRoutes = routeStatuses.filter(status => status === 'pending').length;
 
   if (completedRoutes === routes.length) {
-    // All routes are completed
     newScheduleStatus = 'completed';
   } else if (inProgressRoutes > 0) {
-    // At least one route is in progress
     newScheduleStatus = 'in_progress';
   } else if (pendingRoutes === routes.length) {
-    // All routes are still pending
     newScheduleStatus = 'pending';
   } else {
-    // Mixed states (some completed, some pending) - consider as active
-    newScheduleStatus = 'active';
+    // Fallback to a valid status
+    newScheduleStatus = 'pending';
   }
 
   // Only update if the status has actually changed
@@ -407,25 +404,41 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
     console.log('Schedule status is already', newScheduleStatus);
     return;
   }
+
+  // Convert scheduleId to number if possible
+  const scheduleIdNum = typeof scheduleId === 'string' ? Number(scheduleId) : scheduleId;
+  console.log('Converted scheduleId:', scheduleIdNum, 'type:', typeof scheduleIdNum);
+
+  // Check if the schedule exists in the database before updating
+  const { data: existingSchedule, error: fetchError } = await supabase
+    .from('schedules')
+    .select('*')
+    .eq('schedule_id', scheduleIdNum)
+    .single();
+  if (fetchError || !existingSchedule) {
+    console.error('Schedule not found in database for scheduleId:', scheduleIdNum, 'Error:', fetchError);
+    return;
+  }
+
   if (scheduleDetails?.status !== newScheduleStatus) {
     try {
-      console.log(`Updating schedule status from ${scheduleDetails?.status} to ${newScheduleStatus}`);
-      
-      const response = await supabase
+      console.log('Updating schedule with filter:', { schedule_id: scheduleIdNum }, 'and payload:', { status: newScheduleStatus });
+      const updateResponse = await supabase
         .from('schedules')
         .update({ status: newScheduleStatus })
-        .eq('schedule_id', scheduleId) as { data: any[] | null, error: any };
+        .eq('schedule_id', scheduleIdNum) as { data: any[] | null, error: any };
+      console.log('Supabase update response:', updateResponse);
+      const { error: updateError, data: updateData } = updateResponse;
+      const dataArray = updateData as any[];
 
-      console.log('Supabase update response:', response);
-      const { error, data } = response;
-      const dataArray = data as any[];
-
-      if (error) {
-        console.error('Error updating schedule status:', error);
-        throw new Error(error.message || 'Unknown error from Supabase');
+      if (updateError) {
+        console.error('Error updating schedule status:', updateError, 'Full response:', updateResponse);
+        const errorMsg = updateError.message || updateError.details || updateError.hint || JSON.stringify(updateError) || 'Unknown error from Supabase';
+        throw new Error(errorMsg);
       }
       if (!Array.isArray(dataArray) || dataArray.length === 0) {
-        throw new Error('No schedule was updated. The schedule_id may not exist or the status is already set.');
+        console.warn('No schedule was updated. The schedule_id may not exist or the status is already set.');
+        return;
       }
 
       console.log(`Schedule status updated to ${newScheduleStatus} successfully`);
