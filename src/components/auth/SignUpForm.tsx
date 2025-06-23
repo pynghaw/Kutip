@@ -264,25 +264,6 @@ export default function SignUpForm() {
                 </div>
               </div>
 
-              {/* Checkbox */}
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  className="w-5 h-5"
-                  checked={isChecked}
-                  onChange={setIsChecked}
-                />
-                <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
-                  I confirm that I have permission to create this user account and agree to the{" "}
-                  <span className="text-gray-800 dark:text-white/90">
-                    Terms and Conditions,
-                  </span>{" "}
-                  and our{" "}
-                  <span className="text-gray-800 dark:text-white">
-                    Privacy Policy
-                  </span>
-                </p>
-              </div>
-
               {/* Submit Button */}
               <div>
                 <button 

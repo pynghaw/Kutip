@@ -22,11 +22,16 @@ export function middleware(request: NextRequest) {
     try {
       const user = userData ? JSON.parse(userData) : null;
       if (user) {
-        // Redirect based on role
-        if (user.role === 'admin') {
-          return NextResponse.redirect(new URL('/', request.url));
-        } else if (user.role === 'driver') {
-          return NextResponse.redirect(new URL('/driver', request.url));
+        // Allow admin to access /signup
+        if (pathname.startsWith('/signup') && user.role === 'admin') {
+          // Do not redirect, allow access
+        } else {
+          // Redirect based on role
+          if (user.role === 'admin') {
+            return NextResponse.redirect(new URL('/', request.url));
+          } else if (user.role === 'driver') {
+            return NextResponse.redirect(new URL('/driver', request.url));
+          }
         }
       }
     } catch (error) {

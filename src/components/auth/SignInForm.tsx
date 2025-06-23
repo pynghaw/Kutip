@@ -7,6 +7,7 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface LoginFormData {
   email: string;
@@ -86,6 +87,16 @@ export default function SignInForm() {
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full">
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
+        {/* Treom Logo */}
+        <div className="flex justify-center mb-6">
+          <Image
+            src="/images/logo/treom-full-logo.png"
+            alt="Treom Logo"
+            width={180}
+            height={48}
+            priority
+          />
+        </div>
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
@@ -112,10 +123,9 @@ export default function SignInForm() {
                 <Input 
                   type="email"
                   name="email"
-                  value={formData.email}
+                  defaultValue={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email address"
-                  required
                 />
               </div>
               
@@ -127,10 +137,9 @@ export default function SignInForm() {
                   <Input
                     type={showPassword ? "text" : "password"}
                     name="password"
-                    value={formData.password}
+                    defaultValue={formData.password}
                     onChange={handleInputChange}
                     placeholder="Enter your password"
-                    required
                   />
                   <span
                     onClick={() => setShowPassword(!showPassword)}
@@ -156,14 +165,13 @@ export default function SignInForm() {
               </div>
 
               <div>
-                <Button 
+                <button
                   type="submit"
-                  className="w-full" 
-                  size="sm"
+                  className="w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg shadow-theme-xs bg-brand-500 hover:bg-brand-600 disabled:bg-brand-300"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
-                </Button>
+                </button>
               </div>
             </div>
           </form>
