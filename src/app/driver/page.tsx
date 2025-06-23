@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BinMap from '@/components/maps/BinMap';
+import { supabase } from '@/lib/supabaseClient';
 
 interface User {
   user_id: number;
@@ -16,6 +17,8 @@ export default function DriverDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [truck, setTruck] = useState<any | null>(null);
+  const [truckLoading, setTruckLoading] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in and is a driver
@@ -46,6 +49,25 @@ export default function DriverDashboard() {
     }
   }, [router]);
 
+  useEffect(() => {
+    const fetchTruck = async () => {
+      if (!user) return;
+      setTruckLoading(true);
+      const { data, error } = await supabase
+        .from('trucks')
+        .select('*')
+        .eq('d_id', user.user_id)
+        .single();
+      if (!error && data) {
+        setTruck(data);
+      } else {
+        setTruck(null);
+      }
+      setTruckLoading(false);
+    };
+    fetchTruck();
+  }, [user]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -70,6 +92,21 @@ export default function DriverDashboard() {
         <p className="text-gray-600 dark:text-gray-400">
           Here's your overview
         </p>
+        {/* Truck Assignment Section */}
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Your Assigned Truck</h2>
+          {truckLoading ? (
+            <div className="text-gray-500">Loading truck info...</div>
+          ) : truck ? (
+            <div className="flex items-center space-x-4">
+              <span className="font-medium text-gray-700 dark:text-gray-200">Plate No:</span>
+              <span className="text-gray-900 dark:text-white">{truck.plate_no}</span>
+              <span className={`px-2 py-1 rounded text-xs font-semibold ${truck.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{truck.is_active ? 'Active' : 'Inactive'}</span>
+            </div>
+          ) : (
+            <div className="text-gray-500">No truck assigned to you.</div>
+          )}
+        </div>
       </div>
 
       {/* Quick Actions */}
