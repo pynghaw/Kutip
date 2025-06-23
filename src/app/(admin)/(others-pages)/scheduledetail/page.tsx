@@ -11,7 +11,7 @@ const router = useRouter();
   return (
     <div className="p-6">
        <PageBreadcrumb pageTitle="Schedule Details" />
-      < Details  />
+      <Details />
     </div>
   );
 }

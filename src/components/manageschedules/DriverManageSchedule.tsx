@@ -275,8 +275,59 @@ export default function DriverManageSchedulePage() {
     );
   }
 
+  // Today's date in YYYY-MM-DD
+  const todayDate = new Date();
+  const yyyy = todayDate.getFullYear();
+  const mm = String(todayDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(todayDate.getDate()).padStart(2, '0');
+  const todayString = `${yyyy}-${mm}-${dd}`;
+  const todaySchedules = scheduleDetails.filter(s => s.scheduled_date.startsWith(todayString));
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 space-y-6">
+      {/* Today's Schedule Section */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">Today's Schedule</h2>
+        {todaySchedules.length === 0 ? (
+          <div className="text-gray-500 text-center py-6 border rounded bg-gray-50">No schedule today</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 mb-2">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {todaySchedules.map(schedule => (
+                  <tr key={schedule.schedule_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{schedule.schedule_name}</div>
+                      {schedule.description && (
+                        <div className="text-sm text-gray-500 truncate max-w-xs">{schedule.description}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(schedule.status)}`}>{schedule.status || 'pending'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleViewDetails(schedule.schedule_id!)}
+                        className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -8,7 +8,7 @@ export default function DriverScheduleDetailPage() {
   return (
     <div className="p-6">
       <PageBreadcrumb pageTitle="Schedule Details" />
-      <Details />
+      <Details filterByDriver={true} />
     </div>
   );
 } 

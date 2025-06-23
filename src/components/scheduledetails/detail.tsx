@@ -91,7 +91,11 @@ type BinWithOrder = Bin & {
   estimatedArrivalTime?: string;
 };
 
-export default function ScheduleDetailPage() {
+interface DetailsProps {
+  filterByDriver?: boolean;
+}
+
+export default function ScheduleDetailPage({ filterByDriver = false }: DetailsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const scheduleId = searchParams.get('id');
@@ -399,18 +403,29 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
   }
 
   // Only update if the status has actually changed
+  if (scheduleDetails?.status === newScheduleStatus) {
+    console.log('Schedule status is already', newScheduleStatus);
+    return;
+  }
   if (scheduleDetails?.status !== newScheduleStatus) {
     try {
       console.log(`Updating schedule status from ${scheduleDetails?.status} to ${newScheduleStatus}`);
       
-      const { error } = await supabase
+      const response = await supabase
         .from('schedules')
         .update({ status: newScheduleStatus })
-        .eq('schedule_id', scheduleId);
+        .eq('schedule_id', scheduleId) as { data: any[] | null, error: any };
+
+      console.log('Supabase update response:', response);
+      const { error, data } = response;
+      const dataArray = data as any[];
 
       if (error) {
         console.error('Error updating schedule status:', error);
-        throw error;
+        throw new Error(error.message || 'Unknown error from Supabase');
+      }
+      if (!Array.isArray(dataArray) || dataArray.length === 0) {
+        throw new Error('No schedule was updated. The schedule_id may not exist or the status is already set.');
       }
 
       console.log(`Schedule status updated to ${newScheduleStatus} successfully`);
@@ -757,6 +772,28 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
     return formatDuration(elapsed);
   };
 
+  // Get current driver's user ID
+  const getCurrentDriverId = () => {
+    if (typeof window !== 'undefined') {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          return user.user_id;
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    }
+    return null;
+  };
+
+  // Filter routes for current driver if filterByDriver is true
+  const currentDriverId = getCurrentDriverId();
+  const driverRoutes = scheduleDetails && filterByDriver && currentDriverId
+    ? scheduleDetails.routes.filter(route => route.truck && route.truck.d_id === currentDriverId)
+    : scheduleDetails?.routes || [];
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 space-y-4 min-h-[600px]">
@@ -866,9 +903,9 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
           </div>
         </div>
 
-        {scheduleDetails.routes.length > 0 ? (
+        {driverRoutes.length > 0 ? (
           <div className="space-y-4">
-            {scheduleDetails.routes.map((route, index) => {
+            {driverRoutes.map((route, index) => {
               const routeBinsForCard = scheduleDetails.assignments
                 .filter(assignment => assignment.truck_id === route.truck_id)
                 .map(assignment => assignment.bin)
@@ -1040,8 +1077,8 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
             })}
           </div>
         ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No routes assigned to this schedule.</p>
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No routes assigned to you for this schedule.</p>
           </div>
         )}
       </div>
