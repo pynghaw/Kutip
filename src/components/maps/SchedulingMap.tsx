@@ -1387,8 +1387,6 @@ return (
                 <li>Only schedule bins with "Active" status</li>
                 <li>Use K-Means clustering to group nearby bins efficiently</li>
                 <li>Assign optimized clusters to selected trucks</li>
-                <li>Apply 2-opt algorithm for optimal route within each cluster</li>
-                <li>Create assignments and routes in the database</li>
               </ul>
               {selectedTrucks.length > 0 && (
                 <div className="mt-2 p-2 bg-white rounded border">
