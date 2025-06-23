@@ -250,8 +250,8 @@ const DriverSidebar: React.FC = () => {
             </>
           ) : (
             <Image
-              src="/images/logo/treom-icon.png"
-              alt="Treom Icon"
+              src="/images/logo/treom-full-logo.png"
+              alt="Treom Logo"
               width={32}
               height={32}
             />

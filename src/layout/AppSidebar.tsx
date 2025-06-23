@@ -346,8 +346,8 @@ const AppSidebar: React.FC = () => {
             </>
           ) : (
             <Image
-              src="/images/logo/treom-icon.png" // Path for icon is correct here
-              alt="Treom Icon"
+              src="/images/logo/treom-full-logo.png"
+              alt="Treom Logo"
               width={32}
               height={32}
             />
