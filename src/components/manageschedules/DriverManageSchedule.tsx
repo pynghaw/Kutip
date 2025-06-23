@@ -239,8 +239,6 @@ export default function DriverManageSchedulePage() {
         return 'bg-yellow-100 text-yellow-800';
       case 'pending':
         return 'bg-blue-100 text-blue-800';
-      case 'active':
-        return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -313,7 +311,7 @@ export default function DriverManageSchedulePage() {
           >
             <option value="">All Status</option>
             <option value="pending">Pending</option>
-            <option value="active">Active</option>
+            <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
         </div>
