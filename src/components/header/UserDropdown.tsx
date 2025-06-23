@@ -86,13 +86,12 @@ export default function UserDropdown() {
         onClick={toggleDropdown} 
         className="flex items-center text-gray-700 dark:text-gray-400 dropdown-toggle"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <Image
-            width={44}
-            height={44}
-            src="/images/user/owner.jpg"
-            alt="User"
-          />
+        <span className="mr-3 overflow-hidden rounded-full h-11 w-11 flex items-center justify-center bg-brand-100 text-brand-600 font-bold text-lg">
+          {user?.first_name && user?.last_name
+            ? `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase()
+            : user?.username
+              ? user.username.slice(0, 2).toUpperCase()
+              : 'U'}
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">{displayName}</span>
