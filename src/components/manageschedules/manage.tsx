@@ -340,6 +340,7 @@ export default function ManageSchedulePage() {
               onChange={setFilterDate}
               placeholder="Select date to filter"
               className="flex-1"
+              preventPastDates={false}
             />
             <button
               onClick={() => setFilterDate('')}

@@ -169,22 +169,33 @@ export default function DriverManageSchedulePage() {
 
   // Build detailed schedule data
   useEffect(() => {
-    if (schedules.length > 0) {
+    const currentDriverId = getCurrentDriverId();
+    if (schedules.length > 0 && currentDriverId) {
       const detailed = schedules.map(schedule => {
+        // Only include routes for this driver
         const scheduleRoutes = routes
           .filter(route => route.schedule_id === schedule.schedule_id)
-          .map(route => ({
-            ...route,
-            truck: trucks.find(truck => truck.truck_id === route.truck_id) || null
-          }));
+          .map(route => {
+            const truck = trucks.find(truck => truck.truck_id === route.truck_id) || null;
+            return {
+              ...route,
+              truck
+            };
+          })
+          .filter(route => route.truck && route.truck.d_id === currentDriverId);
 
+        // Only include assignments for this driver's truck(s)
         const scheduleAssignments = assignments
           .filter(assignment => assignment.schedule_id === schedule.schedule_id)
-          .map(assignment => ({
-            ...assignment,
-            bin: bins.find(bin => bin.bin_id === assignment.bin_id) || null,
-            truck: trucks.find(truck => truck.truck_id === assignment.truck_id) || null
-          }));
+          .map(assignment => {
+            const truck = trucks.find(truck => truck.truck_id === assignment.truck_id) || null;
+            return {
+              ...assignment,
+              bin: bins.find(bin => bin.bin_id === assignment.bin_id) || null,
+              truck
+            };
+          })
+          .filter(assignment => assignment.truck && assignment.truck.d_id === currentDriverId);
 
         return {
           ...schedule,
@@ -193,7 +204,8 @@ export default function DriverManageSchedulePage() {
         };
       });
 
-      setScheduleDetails(detailed);
+      // Only keep schedules that have at least one route for this driver
+      setScheduleDetails(detailed.filter(s => s.routes.length > 0));
     }
   }, [schedules, routes, assignments, bins, trucks]);
 

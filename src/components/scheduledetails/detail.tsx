@@ -73,8 +73,8 @@ type Schedule = {
 };
 
 type ScheduleDetails = Schedule & {
-  routes: (Route & { truck: Truck | null; driver: Driver | null })[];
-  assignments: (TruckAssignment & { bin: Bin | null; truck: Truck | null; driver: Driver | null })[];
+  routes: (Route & { truck: Truck | null; driver: any | null })[];
+  assignments: (TruckAssignment & { bin: Bin | null; truck: Truck | null; driver: any | null })[];
 };
 
 type RouteInfo = {
@@ -99,6 +99,7 @@ export default function ScheduleDetailPage() {
   const map = useRef<mapboxgl.Map | null>(null);
 
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<Route & { truck: Truck | null; driver: Driver | null } | null>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeBins, setRouteBins] = useState<BinWithOrder[]>([]);
@@ -110,14 +111,15 @@ export default function ScheduleDetailPage() {
   const [showBinDetails, setShowBinDetails] = useState(false);
 
   useEffect(() => {
-    if (!scheduleId) {
-      setError("No schedule ID provided");
-      setLoading(false);
+    if (!scheduleId || users.length === 0) {
+      if (!scheduleId) {
+        setError("No schedule ID provided");
+        setLoading(false);
+      }
       return;
     }
-
     fetchScheduleDetails();
-  }, [scheduleId]);
+  }, [scheduleId, users]);
 
   useEffect(() => {
     if (showMap && mapContainer.current && !map.current) {
@@ -137,6 +139,22 @@ export default function ScheduleDetailPage() {
       displayRouteOnMap();
     }
   }, [selectedRoute, scheduleDetails]);
+
+  // Fetch users with role 'driver' for driver name lookup
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          setUsers(data.filter((u: any) => u.role === 'driver'));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const fetchScheduleDetails = async () => {
     try {
@@ -183,19 +201,13 @@ export default function ScheduleDetailPage() {
         .from("bins")
         .select("*");
 
-      const { data: drivers, error: driversError } = await supabase
-        .from("driver")
-        .select("*");
-
       if (trucksError) console.warn("Error fetching trucks:", trucksError);
       if (binsError) console.warn("Error fetching bins:", binsError);
-      if (driversError) console.warn("Error fetching drivers:", driversError);
 
-      // Combine data
+      // Combine data, but use users for driver info
       const routesWithTrucksAndDrivers = (routes || []).map(route => {
         const truck = (trucks || []).find(truck => truck.truck_id === route.truck_id) || null;
-        const driver = truck ? (drivers || []).find(driver => driver.d_id === truck.d_id) || null : null;
-        
+        const driver = truck ? users.find(u => u.user_id === truck.d_id) || null : null;
         return {
           ...route,
           truck,
@@ -205,8 +217,7 @@ export default function ScheduleDetailPage() {
 
       const assignmentsWithDetails = (assignments || []).map(assignment => {
         const truck = (trucks || []).find(truck => truck.truck_id === assignment.truck_id) || null;
-        const driver = truck ? (drivers || []).find(driver => driver.d_id === truck.d_id) || null : null;
-        
+        const driver = truck ? users.find(u => u.user_id === truck.d_id) || null : null;
         return {
           ...assignment,
           bin: (bins || []).find(bin => bin.bin_id === assignment.bin_id) || null,
@@ -922,7 +933,7 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
                     <div>
                       <p className="text-sm text-gray-600">Driver</p>
                       <p className="font-medium">
-                        {route.driver ? route.driver.d_name : 'Not assigned'}
+                        {route.driver ? (route.driver.first_name && route.driver.last_name ? `${route.driver.first_name} ${route.driver.last_name}` : route.driver.username) : 'N/A'}
                       </p>
                     </div>
                     <div>
@@ -1166,7 +1177,7 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
                         {assignment.truck ? assignment.truck.plate_no : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {assignment.driver ? assignment.driver.d_name : 'N/A'}
+                        {assignment.driver ? (assignment.driver.first_name && assignment.driver.last_name ? `${assignment.driver.first_name} ${assignment.driver.last_name}` : assignment.driver.username) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${

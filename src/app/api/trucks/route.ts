@@ -4,21 +4,38 @@ import { supabase } from '@/lib/supabaseClient'; // Import Supabase client
 // GET all trucks
 export async function GET() {
   try {
-    // Select all columns from 'trucks' and also fetch 'd_name' from the 'driver' table
-    // Ensure 'd_name' is the correct column name in your 'driver' table
-    const { data, error } = await supabase
-      .from('trucks') // Supabase table name
-      .select('*, driver(d_name)')
-      .order('created_at', { ascending: false }); // Assuming 'created_at' and desired order
+    // Fetch all trucks
+    const { data: trucks, error: trucksError } = await supabase
+      .from('trucks')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (trucksError) throw trucksError;
 
-    // Map the data to flatten the driver_name into the truck object
-    const trucksWithDriverName = data.map((truck: any) => ({
-      ...truck,
-      DriverName: truck.driver ? truck.driver.d_name : null, // Extract d_name from 'driver' object
-      driver: undefined, // Remove the nested 'driver' object to flatten the structure
-    }));
+    // Fetch all users with role 'driver'
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('user_id, username, first_name, last_name, is_active')
+      .eq('role', 'driver');
+
+    if (usersError) throw usersError;
+
+    // Map trucks to include DriverName from users table
+    const trucksWithDriverName = trucks.map((truck) => {
+      const driver = users.find((u) => u.user_id === truck.d_id);
+      let DriverName = null;
+      if (driver) {
+        if (driver.first_name && driver.last_name) {
+          DriverName = `${driver.first_name} ${driver.last_name}`;
+        } else {
+          DriverName = driver.username;
+        }
+      }
+      return {
+        ...truck,
+        DriverName,
+      };
+    });
 
     return NextResponse.json(trucksWithDriverName);
   } catch (error: any) {

@@ -3,33 +3,53 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    // Fetch all truck assignments
+    const { data: assignments, error: assignmentsError } = await supabase
       .from("truck_assignments")
-      .select(`
-        scheduled_date,
-        collection_status,
-        bin_id,
-        trucks:truck_id (
-          plate_no,
-          driver: d_id (
-            d_name
-          )
-        )
-      `)
+      .select("scheduled_date, collection_status, bin_id, truck_id")
       .order("scheduled_date", { ascending: true });
 
-    if (error || !data) {
-      console.error("Supabase error:", error);
+    if (assignmentsError || !assignments) {
+      console.error("Supabase error (assignments):", assignmentsError);
       return NextResponse.json({ error: "Failed to fetch schedule" }, { status: 500 });
     }
 
-    const formatted = data.map((item) => {
-      const truck = Array.isArray(item.trucks) ? item.trucks[0] : item.trucks;
-      const driver = truck?.driver && Array.isArray(truck.driver) ? truck.driver[0] : truck?.driver;
+    // Fetch all trucks
+    const { data: trucks, error: trucksError } = await supabase
+      .from("trucks")
+      .select("truck_id, plate_no, d_id");
 
+    if (trucksError || !trucks) {
+      console.error("Supabase error (trucks):", trucksError);
+      return NextResponse.json({ error: "Failed to fetch trucks" }, { status: 500 });
+    }
+
+    // Fetch all users with role 'driver'
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("user_id, first_name, last_name, username, role")
+      .eq("role", "driver");
+
+    if (usersError || !users) {
+      console.error("Supabase error (users):", usersError);
+      return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+    }
+
+    // Manually join assignments -> trucks -> users
+    const formatted = assignments.map((item) => {
+      const truck = trucks.find(t => t.truck_id === item.truck_id);
+      const driver = truck ? users.find(u => u.user_id === truck.d_id) : null;
+      let driverName = "Unknown";
+      if (driver) {
+        if (driver.first_name && driver.last_name) {
+          driverName = `${driver.first_name} ${driver.last_name}`;
+        } else if (driver.username) {
+          driverName = driver.username;
+        }
+      }
       return {
         plateNo: truck?.plate_no ?? "Unknown",
-        driverName: driver?.d_name ?? "Unknown",
+        driverName,
         binId: item.bin_id,
         scheduledDate: item.scheduled_date,
         collectionStatus: item.collection_status ? "Collected" : "Missed",

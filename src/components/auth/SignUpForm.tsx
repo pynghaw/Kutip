@@ -30,7 +30,6 @@ const initialFormData: UserFormData = {
 export default function SignUpForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
   const [formData, setFormData] = useState<UserFormData>(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +46,6 @@ export default function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isChecked) {
-      setError('Please agree to the Terms and Conditions');
-      return;
-    }
-
     // Validation
     if (!formData.username || !formData.email || !formData.password || !formData.role) {
       setError('Please fill in all required fields');
@@ -90,7 +84,6 @@ export default function SignUpForm() {
       }, 2000);
       
       setFormData(initialFormData);
-      setIsChecked(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

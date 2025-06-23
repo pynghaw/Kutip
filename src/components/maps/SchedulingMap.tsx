@@ -78,6 +78,7 @@ export default function AutoSchedulingPage() {
   const [selectedTrucks, setSelectedTrucks] = useState<number[]>([]);
   const [showScheduleTable, setShowScheduleTable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
 
   const centerLat = 1.5341;
   const centerLng = 103.6217;
@@ -465,6 +466,22 @@ export default function AutoSchedulingPage() {
       setSchedules([]);
     }
   };
+
+  // Fetch users with role 'driver' for driver name lookup
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          setUsers(data.filter((u: any) => u.role === 'driver'));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     fetchBins();
@@ -1158,6 +1175,7 @@ return (
             .filter(route => !schedulingDate || route.scheduled_date.startsWith(schedulingDate))
             .map((route) => {
               const truck = trucks.find(t => t.truck_id === route.truck_id);
+              const driver = truck ? users.find(u => u.user_id === truck.d_id) : null;
               return (
                 <div
                   key={route.route_id}
@@ -1171,11 +1189,12 @@ return (
                       <h4 className="font-medium text-sm">{route.route_name}</h4>
                       <p className="text-xs text-gray-600">
                         Truck: {truck?.plate_no} ({truck?.assigned_area})
+                        <br />
+                        Driver: {driver ? (driver.first_name && driver.last_name ? `${driver.first_name} ${driver.last_name}` : driver.username) : 'N/A'}
                       </p>
                       <p className="text-xs text-gray-600">
                         Date: {new Date(route.scheduled_date).toLocaleDateString()}
                       </p>
-    
                       <p className="text-xs text-gray-600">
                         Bins: {route.total_bins || 0}
                       </p>
@@ -1325,33 +1344,37 @@ return (
                 {availableTrucks.length === 0 ? (
                   <p className="p-3 text-gray-500 text-sm">No available trucks</p>
                 ) : (
-                  availableTrucks.map((truck) => (
-                    <div
-                      key={truck.truck_id}
-                      className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
-                        selectedTrucks.includes(truck.truck_id) ? 'bg-blue-50 border-blue-200' : ''
-                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={() => !isLoading && handleTruckSelection(truck.truck_id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedTrucks.includes(truck.truck_id)}
-                              onChange={() => !isLoading && handleTruckSelection(truck.truck_id)}
-                              className="rounded"
-                              disabled={isLoading}
-                            />
-                            <span className="font-medium text-sm">{truck.plate_no}</span>
+                  availableTrucks.map((truck) => {
+                    const driver = users.find(u => u.user_id === truck.d_id);
+                    const driverName = driver ? (driver.first_name && driver.last_name ? `${driver.first_name} ${driver.last_name}` : driver.username) : 'N/A';
+                    return (
+                      <div
+                        key={truck.truck_id}
+                        className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
+                          selectedTrucks.includes(truck.truck_id) ? 'bg-blue-50 border-blue-200' : ''
+                        } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !isLoading && handleTruckSelection(truck.truck_id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedTrucks.includes(truck.truck_id)}
+                                onChange={() => !isLoading && handleTruckSelection(truck.truck_id)}
+                                className="rounded"
+                                disabled={isLoading}
+                              />
+                              <span className="font-medium text-sm">{truck.plate_no}</span>
+                            </div>
+                            <p className="text-xs text-gray-600 ml-6">
+                              ID: {truck.truck_id} | Driver: {driverName}
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-600 ml-6">
-                            ID: {truck.truck_id} | Area: {truck.assigned_area}
-                          </p>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               {availableTrucks.length > 0 && (

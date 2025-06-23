@@ -101,7 +101,7 @@ export default function TrucksTable() {
     const [currentTruck, setCurrentTruck] = useState<Truck | null>(null);
     const [formData, setFormData] = useState<TruckFormData>(initialTruckFormData);
     const [trucksData, setTrucksData] = useState<Truck[]>([]);
-    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [drivers, setDrivers] = useState<{ user_id: number, first_name: string | null, last_name: string | null, username: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -116,12 +116,13 @@ export default function TrucksTable() {
             const trucksData: Truck[] = await trucksResponse.json();
             setTrucksData(trucksData);
 
-            const driversResponse = await fetch('/api/drivers');
-            if (!driversResponse.ok) {
-                throw new Error(`HTTP error fetching drivers! status: ${driversResponse.status}`);
+            const usersResponse = await fetch('/api/users');
+            if (!usersResponse.ok) {
+                throw new Error(`HTTP error fetching users! status: ${usersResponse.status}`);
             }
-            const driversData: Driver[] = await driversResponse.json();
-            setDrivers(driversData);
+            const usersData = await usersResponse.json();
+            const driverUsers = usersData.filter((u: any) => u.role === 'driver' && u.is_active);
+            setDrivers(driverUsers);
 
         } catch (e) {
             if (e instanceof Error) {
@@ -330,8 +331,8 @@ export default function TrucksTable() {
                     >
                         <option value="" disabled>Select a driver</option>
                         {drivers.map((driver) => (
-                            <option key={driver.d_id} value={driver.d_id}>
-                                {driver.d_name}
+                            <option key={driver.user_id} value={driver.user_id}>
+                                {driver.first_name && driver.last_name ? `${driver.first_name} ${driver.last_name}` : driver.username}
                             </option>
                         ))}
                     </select>
@@ -579,7 +580,10 @@ export default function TrucksTable() {
                                             <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-white/90">{index + 1}</TableCell>
                                             <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{truck.plate_no}</TableCell>
                                             <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                                {truck.DriverName || 'N/A'}
+                                                {(() => {
+                                                    const driver = drivers.find(d => d.user_id === truck.d_id);
+                                                    return driver ? (driver.first_name && driver.last_name ? `${driver.first_name} ${driver.last_name}` : driver.username) : 'N/A';
+                                                })()}
                                             </TableCell>
                                             <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                                                 <Badge size="sm" color={truck.is_active ? "success" : "error"}>
