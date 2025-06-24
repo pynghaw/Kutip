@@ -34,11 +34,6 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/",
   }, 
-  {
-    icon: <CameraIcon />,
-    name: "Camera",
-    path: "/camera",
-  },
    {
     name: "Map/Scheduling",
     icon: <CalenderIcon />,

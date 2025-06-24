@@ -7,7 +7,7 @@ from cameraDb import log_to_supabase  # Function to log to Supabase
 import re
 
 # Load the YOLO model
-model = YOLO("weights.pt")
+model = YOLO(r"C:\Users\User\Documents\GitHub\Kutip\YoloCamera\weights.pt")
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
 # Tesseract OCR path
@@ -91,9 +91,10 @@ while True:
     # Show full-frame with bounding box
     cv2.imshow("Bin Plate Detection", frame)
 
-    # Wait a bit and break on 'q'
+    # Wait for 'q' key to stop and close the camera feed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# Release the camera and close any OpenCV windows
 cap.release()
 cv2.destroyAllWindows()
