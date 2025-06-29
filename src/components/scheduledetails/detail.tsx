@@ -144,6 +144,15 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
     }
   }, [selectedRoute, scheduleDetails]);
 
+  // Add a specific effect for routeBins changes
+  useEffect(() => {
+    console.log('routeBins changed:', routeBins.length, 'bins');
+    if (selectedRoute && map.current && scheduleDetails && routeBins.length > 0 && showMap) {
+      console.log('routeBins effect triggered - calling displayRouteOnMap');
+      displayRouteOnMap();
+    }
+  }, [routeBins]);
+
   // Fetch users with role 'driver' for driver name lookup
   useEffect(() => {
     const fetchUsers = async () => {
@@ -464,10 +473,42 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    
+    // Wait for map to load before allowing any operations
+    map.current.on('load', () => {
+      console.log('Map loaded successfully');
+    });
+
+    // Also listen for the 'idle' event which means the map is fully ready
+    map.current.on('idle', () => {
+      console.log('Map is idle and ready for operations');
+    });
   };
 
   const displayRouteOnMap = async () => {
-    if (!map.current || !selectedRoute || !scheduleDetails || routeBins.length === 0) return;
+    console.log('displayRouteOnMap called with:', {
+      mapExists: !!map.current,
+      selectedRoute: !!selectedRoute,
+      scheduleDetails: !!scheduleDetails,
+      routeBinsLength: routeBins.length,
+      showMap
+    });
+
+    if (!map.current || !selectedRoute || !scheduleDetails || routeBins.length === 0) {
+      console.log('displayRouteOnMap early return - missing data');
+      return;
+    }
+
+    // Wait for map to be loaded before proceeding
+    if (!map.current.isStyleLoaded()) {
+      console.log('Waiting for map style to load...');
+      map.current.once('idle', () => {
+        displayRouteOnMap();
+      });
+      return;
+    }
+
+    console.log('Starting to display route on map with', routeBins.length, 'bins');
 
     // Clear existing layers and sources
     if (map.current.getLayer('route')) {
@@ -581,29 +622,38 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
           const routeColor = selectedRoute.status === 'completed' ? '#10b981' : 
                            selectedRoute.status === 'in_progress' ? '#f59e0b' : '#3b82f6';
 
-          map.current!.addSource('route', {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: route.geometry
-            }
-          });
+          // Double-check that map is ready before adding source
+          if (map.current && map.current.isStyleLoaded()) {
+            try {
+              map.current.addSource('route', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: route.geometry
+                }
+              });
 
-          map.current!.addLayer({
-            id: 'route',
-            type: 'line',
-            source: 'route',
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': routeColor,
-              'line-width': 5,
-              'line-opacity': 0.8
+              map.current.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                },
+                paint: {
+                  'line-color': routeColor,
+                  'line-width': 5,
+                  'line-opacity': 0.8
+                }
+              });
+            } catch (mapError) {
+              console.error('Error adding route to map:', mapError);
             }
-          });
+          } else {
+            console.warn('Map not ready, skipping route display');
+          }
         }
       } catch (error) {
         console.error('Error fetching route:', error);
@@ -612,14 +662,18 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
     }
 
     // Fit map to show all markers
-    if (coordinates.length > 0) {
-      const bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+    if (coordinates.length > 0 && map.current) {
+      try {
+        const bounds = coordinates.reduce((bounds, coord) => {
+          return bounds.extend(coord);
+        }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
 
-      map.current.fitBounds(bounds, {
-        padding: 50
-      });
+        map.current.fitBounds(bounds, {
+          padding: 50
+        });
+      } catch (error) {
+        console.error('Error fitting bounds:', error);
+      }
     }
   };
 
@@ -688,10 +742,33 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
       const updatedRoute = { ...selectedRoute, status: newStatus, ...updateData };
       setSelectedRoute(updatedRoute);
       
-      // Recalculate route info for the updated route
+      // Recalculate route info and bins for the updated route
       const newRouteInfo = await calculateRouteInfo(updatedRoute);
       if (newRouteInfo) {
         setRouteInfo(newRouteInfo);
+      }
+      
+      // Force a complete map refresh by calling handleViewRoute again
+      if (showMap) {
+        console.log('Forcing complete map refresh for updated route');
+        // Force map reinitialization by clearing and reinitializing
+        if (map.current) {
+          map.current.remove();
+          map.current = null;
+        }
+        // Use setTimeout to ensure all state updates are processed
+        setTimeout(() => {
+          // Ensure map is initialized before calling handleViewRoute
+          if (mapContainer.current && !map.current) {
+            initializeMap();
+            // Wait for map to load before calling handleViewRoute
+            setTimeout(() => {
+              handleViewRoute(updatedRoute);
+            }, 500);
+          } else {
+            handleViewRoute(updatedRoute);
+          }
+        }, 200);
       }
     }
 
@@ -739,6 +816,20 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
     const info = await calculateRouteInfo(route);
     if (info) {
       setRouteInfo(info);
+    }
+
+    // Ensure map is ready before trying to display route
+    if (map.current && !map.current.isStyleLoaded()) {
+      console.log('Waiting for map to be ready before displaying route');
+      map.current.once('idle', () => {
+        displayRouteOnMap();
+      });
+    } else if (map.current) {
+      // Map is ready, display route immediately
+      displayRouteOnMap();
+    } else {
+      // Map not initialized yet, wait for it to be created
+      console.log('Map not initialized yet, will display route when ready');
     }
   };
 
@@ -1137,14 +1228,14 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
                     <div>
                       <p className="text-sm text-gray-600">
                         {selectedRoute.status === 'completed' ? 'Completed At' : 
-                         selectedRoute.status === 'in_progress' ? 'Started At' : 'Est. Start Time'}
+                         selectedRoute.status === 'in_progress' ? 'Started At' : 'Status'}
                       </p>
                       <p className="font-semibold">
                         {selectedRoute.status === 'completed' && selectedRoute.completed_at ? 
                           formatTime(selectedRoute.completed_at) :
-                         selectedRoute.status === 'in_progress' && selectedRoute.route_id && routeStartTimes[selectedRoute.route_id] ?
-                          formatTime(routeStartTimes[selectedRoute.route_id]) :
-                         routeInfo.estimatedStartTime ? formatTime(routeInfo.estimatedStartTime) : 'N/A'}
+                         selectedRoute.status === 'in_progress' && selectedRoute.started_at ? 
+                          formatTime(selectedRoute.started_at) :
+                         selectedRoute.status}
                       </p>
                     </div>
                   </div>
@@ -1154,34 +1245,9 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
               {/* Map Container */}
               <div 
                 ref={mapContainer} 
-                className="h-96 rounded-lg border border-gray-300"
+                className="w-full h-96 rounded-lg border border-gray-200"
                 style={{ minHeight: '400px' }}
               />
-
-              {/* Map Legend */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold mb-2">Map Legend</h4>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                    <span>Collection Center (Start/End)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-4 h-4 rounded-full ${
-                      selectedRoute.status === 'completed' ? 'bg-green-500' :
-                      selectedRoute.status === 'in_progress' ? 'bg-yellow-500' : 'bg-blue-500'
-                    }`}></div>
-                    <span>Bins (Numbered by collection order)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-8 h-1 ${
-                      selectedRoute.status === 'completed' ? 'bg-green-500' :
-                      selectedRoute.status === 'in_progress' ? 'bg-yellow-500' : 'bg-blue-500'
-                    }`}></div>
-                    <span>Route Path</span>
-                  </div>
-                </div>
-              </div>
             </>
           )}
         </div>
