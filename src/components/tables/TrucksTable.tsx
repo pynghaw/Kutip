@@ -72,6 +72,11 @@ export default function TrucksTable() {
     const [isShowDetailsModalOpen, setIsShowDetailsModalOpen] = useState(false); // State for details modal
     const [truckDetailsToShow, setTruckDetailsToShow] = useState<Truck | null>(null);
 
+    // --- NEW STATE FOR SUCCESS MODAL ---
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    // --- END NEW STATE ---
+
     const [currentTruck, setCurrentTruck] = useState<Truck | null>(null);
     const [formData, setFormData] = useState<TruckFormData>(initialTruckFormData);
     const [trucksData, setTrucksData] = useState<Truck[]>([]);
