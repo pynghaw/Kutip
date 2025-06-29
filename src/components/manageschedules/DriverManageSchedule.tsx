@@ -296,7 +296,8 @@ export default function DriverManageSchedulePage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -311,6 +312,21 @@ export default function DriverManageSchedulePage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(schedule.status)}`}>{schedule.status || 'pending'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {schedule.routes.map((route, index) => (
+                          <div key={route.route_id || index} className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-600">{route.route_name}:</span>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(route.status)}`}>
+                              {route.status || 'pending'}
+                            </span>
+                          </div>
+                        ))}
+                        {schedule.routes.length === 0 && (
+                          <span className="text-xs text-gray-500">No routes assigned</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
@@ -416,7 +432,10 @@ export default function DriverManageSchedulePage() {
                 Scheduled Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                Schedule Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Route Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Trucks
@@ -435,7 +454,7 @@ export default function DriverManageSchedulePage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedSchedules.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                   No schedules found matching your criteria
                 </td>
               </tr>
@@ -459,6 +478,21 @@ export default function DriverManageSchedulePage() {
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(schedule.status)}`}>
                       {schedule.status || 'pending'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="space-y-1">
+                      {schedule.routes.map((route, index) => (
+                        <div key={route.route_id || index} className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-600">{route.route_name}:</span>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(route.status)}`}>
+                            {route.status || 'pending'}
+                          </span>
+                        </div>
+                      ))}
+                      {schedule.routes.length === 0 && (
+                        <span className="text-xs text-gray-500">No routes assigned</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {schedule.total_trucks}

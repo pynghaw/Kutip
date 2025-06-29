@@ -22,23 +22,6 @@ import {
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
 
-// --- NEW INTERFACE FOR DRIVER DATA ---
-interface Driver {
-    d_id: number;
-    d_name: string;
-}
-// --- END NEW INTERFACE ---
-
-// --- NEW INTERFACE FOR DRIVER FORM DATA ---
-interface DriverFormData {
-    d_name: string;
-}
-
-const initialDriverFormData: DriverFormData = {
-    d_name: "",
-};
-// --- END NEW INTERFACE ---
-
 // Define a type for the form data, INCLUDING is_active
 interface TruckFormData {
     plate_no: string;
@@ -89,14 +72,10 @@ export default function TrucksTable() {
     const [isShowDetailsModalOpen, setIsShowDetailsModalOpen] = useState(false); // State for details modal
     const [truckDetailsToShow, setTruckDetailsToShow] = useState<Truck | null>(null);
 
-    const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
-    const [driverFormData, setDriverFormData] = useState<DriverFormData>(initialDriverFormData);
-
     // --- NEW STATE FOR SUCCESS MODAL ---
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
     // --- END NEW STATE ---
-
 
     const [currentTruck, setCurrentTruck] = useState<Truck | null>(null);
     const [formData, setFormData] = useState<TruckFormData>(initialTruckFormData);
@@ -147,14 +126,6 @@ export default function TrucksTable() {
         }));
     };
 
-    const handleDriverInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setDriverFormData(prev => ({
-            ...prev,
-            [name]: value,
-        }));
-    };
-
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -189,34 +160,6 @@ export default function TrucksTable() {
                 setError(`Failed to create truck: ${e.message}`);
             } else {
                 setError('An unknown error occurred while creating truck.');
-            }
-        }
-    };
-
-    const handleAddDriver = async () => {
-        try {
-            const response = await fetch('/api/drivers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    DriverName: driverFormData.d_name,
-                }),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
-            }
-            await fetchDataAndDrivers();
-            setIsAddDriverModalOpen(false);
-            setDriverFormData(initialDriverFormData);
-            setError(null); // Clear previous errors on success
-            setSuccessMessage(`Driver "${driverFormData.d_name}" added successfully!`); // Set success message
-            setIsSuccessModalOpen(true); // Open success modal
-        } catch (e) {
-            if (e instanceof Error) {
-                setError(`Failed to add driver: ${e.message}`);
-            } else {
-                setError('An unknown error occurred while adding driver.');
             }
         }
     };
@@ -363,71 +306,17 @@ export default function TrucksTable() {
         </>
     );
 
-    const renderDriverForm = (submitHandler: () => void, closeHandler: () => void) => (
-        <>
-            <DialogHeader>
-                <DialogTitle>Add New Driver</DialogTitle>
-                <DialogDescription>
-                    Enter the name of the new driver.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="d_name" className="text-right">
-                        Driver Name
-                    </Label>
-                    <Input
-                        id="d_name"
-                        name="d_name"
-                        value={driverFormData.d_name}
-                        onChange={handleDriverInputChange}
-                        className="col-span-3"
-                        required
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={closeHandler}>Cancel</Button>
-                <Button onClick={submitHandler}>Add Driver</Button>
-            </DialogFooter>
-        </>
-    );
-
-
     if (loading) {
         return <div className="p-4 text-center">Loading truck data...</div>;
     }
 
-    if (error && !isCreateModalOpen && !isEditModalOpen && !isDeleteConfirmOpen && !isAddDriverModalOpen && !isSuccessModalOpen) {
+    if (error && !isCreateModalOpen && !isEditModalOpen && !isDeleteConfirmOpen && !isSuccessModalOpen) {
         return <div className="p-4 text-center text-red-500">Error: {error}</div>;
     }
 
     return (
         <div className="p-4">
             <div className="mb-4 flex justify-end space-x-2"> {/* Added space-x-2 for button spacing */}
-                {/* --- NEW: Add Driver Button --- */}
-                <Dialog open={isAddDriverModalOpen} onOpenChange={(isOpen) => {
-                    setIsAddDriverModalOpen(isOpen);
-                    if (!isOpen) {
-                        setDriverFormData(initialDriverFormData); // Reset form when closing
-                        setError(null); // Clear errors when closing
-                    }
-                }}>
-                    <DialogTrigger asChild>
-                        <Button
-                            onClick={() => { setDriverFormData(initialDriverFormData); setError(null); setIsAddDriverModalOpen(true); }}
-                            className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800" // Brown color
-                        >
-                            Add Driver
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                        {error && isAddDriverModalOpen && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
-                        {renderDriverForm(handleAddDriver, () => { setIsAddDriverModalOpen(false); setError(null); setDriverFormData(initialDriverFormData); })}
-                    </DialogContent>
-                </Dialog>
-                {/* --- END NEW --- */}
-
                 <Dialog open={isCreateModalOpen} onOpenChange={(isOpen) => {
                     setIsCreateModalOpen(isOpen);
                     if (!isOpen) {
@@ -440,7 +329,7 @@ export default function TrucksTable() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                         {/* Show error inside modal if it's open */}
-                        {error && (isCreateModalOpen || isEditModalOpen || isAddDriverModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+                        {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
                         {renderTruckForm(handleCreateTruck, () => { setIsCreateModalOpen(false); setError(null); setFormData(initialTruckFormData); }, false)}
                     </DialogContent>
                 </Dialog>
@@ -456,7 +345,7 @@ export default function TrucksTable() {
             }}>
                 <DialogContent className="sm:max-w-[425px]">
                     {/* Show error inside modal if it's open */}
-                    {error && (isCreateModalOpen || isEditModalOpen || isAddDriverModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+                    {error && (isCreateModalOpen || isEditModalOpen) && <div className="mb-4 text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
                     {currentTruck && renderTruckForm(handleUpdateTruck, () => { setIsEditModalOpen(false); setError(null); setCurrentTruck(null); }, true)}
                 </DialogContent>
             </Dialog>
