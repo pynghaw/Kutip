@@ -945,7 +945,7 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {route.status === 'pending' && (
+                      {filterByDriver && route.status === 'pending' && (
                         <button
                           onClick={() => updateRouteStatus(route.route_id!, 'in_progress')}
                           disabled={updatingRoute === route.route_id}
