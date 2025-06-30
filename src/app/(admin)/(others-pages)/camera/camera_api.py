@@ -4,11 +4,11 @@ import cv2, threading, time
 from datetime import datetime
 from ultralytics import YOLO
 import pytesseract, difflib
-from cameraDb import log_to_supabase
+#from cameraDb import log_to_supabase
 from gdrive_auth import upload_to_gdrive
 
 app = FastAPI()
-model = YOLO("weights.pt")
+model = YOLO(r"C:\xampp\htdocs\Kutip\src\app\(admin)\(others-pages)\camera\weights.pt")
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
 latest_plate = {"plate": None, "confidence": 0.0, "timestamp": None}
