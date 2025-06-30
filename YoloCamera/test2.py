@@ -11,7 +11,7 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 
 # Your fixed list of 10 bin IDs
 KNOWN_PLATES = [
-    'BAM 9267', 'AAA 444', 'WVX 3589', 'WXM 3268', 'WSN 5634',
+    'BAM 9267', 'AAA 4444', 'WVX 3589', 'WXM 3268', 'WSN 5634',
     'IIUM 6763', 'VS 2277', 'WXS 3465', 'BGN 6677', 'JFC 2218'
 ]
 # Minimum similarity ratio (0–1) to accept a match
