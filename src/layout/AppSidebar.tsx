@@ -34,15 +34,6 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/",
   }, 
-   {
-    name: "Map/Scheduling",
-    icon: <CalenderIcon />,
-    subItems: [
-      { name: "Map View", path: "/map", pro: false },
-      { name: "Create Schedule", path: "/scheduling", pro: false },
-       { name: "Manage Schedule", path: "/manageschedule", pro: false },
-    ],
-  },     
   {
     name: "Operational Tables",
     icon: <TableIcon />,
@@ -53,6 +44,16 @@ const navItems: NavItem[] = [
       { name: "Pickups", path: "/pickup-tables", pro: false },*/
     ],
   },
+   {
+    name: "Map/Scheduling",
+    icon: <CalenderIcon />,
+    subItems: [
+      { name: "Map View", path: "/map", pro: false },
+      { name: "Create Schedule", path: "/scheduling", pro: false },
+       { name: "Manage Schedule", path: "/manageschedule", pro: false },
+    ],
+  },     
+  
   
 ];
 
@@ -67,17 +68,13 @@ const othersItems: NavItem[] = [
     name: "Calendar",
     path: "/calendar",
   },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
-  },
+
   {
     icon: <GroupIcon />,
     name: "User Management",
     path: "/user-management",
   },
-  {
+  /*{
     icon: <PieChartIcon />,
     name: "Charts",
     subItems: [
