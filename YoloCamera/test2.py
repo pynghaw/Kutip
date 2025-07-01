@@ -2,10 +2,10 @@ import cv2, pytesseract, re, difflib
 from ultralytics import YOLO
 from datetime import datetime
 from gdrive_auth import upload_to_gdrive
-from cameraDb import log_to_supabase
+
 
 # ——— CONFIG ———
-MODEL_PATH      = r"C:\xampp\htdocs\Kutip\YoloCamera\weights.pt"
+MODEL_PATH      = r"C:\Users\User\Documents\GitHub\Kutip\YoloCamera\weights.pt"
 DRIVE_FOLDER_ID = "1oLqV0VLJiqyoGBDXwCQNo1zL3xu0lj56"
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -99,7 +99,7 @@ while True:
             cv2.imwrite(ff, frame)
             cv2.imwrite(cf, roi)
             upload_to_gdrive(cf, folder_id=DRIVE_FOLDER_ID)
-            log_to_supabase(bin_id=matched_plate, confidence=conf, filename=cf)
+            
         else:
             # no good match—ignore this detection
             print(f"❌ No match above {MATCH_THRESHOLD:.2f}: OCR='{ocr_plate}' | Best ratio={ratio:.2f}")
