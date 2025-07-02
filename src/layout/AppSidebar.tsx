@@ -32,25 +32,25 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    path: "/",
+    path: "/admin",
   }, 
   {
     name: "Operational Tables",
     icon: <TableIcon />,
     subItems: [
-      { name: "Bins", path: "/bins-tables", pro: false },
-      { name: "Trucks", path: "/trucks-tables", pro: false },
-      /*{ name: "Truck Assignment", path: "/assign-tables", pro: false },
-      { name: "Pickups", path: "/pickup-tables", pro: false },*/
+      { name: "Bins", path: "/admin/bins-tables", pro: false },
+      { name: "Trucks", path: "/admin/trucks-tables", pro: false },
+      /*{ name: "Truck Assignment", path: "/admin/assign-tables", pro: false },
+      { name: "Pickups", path: "/admin/pickup-tables", pro: false },*/
     ],
   },
    {
     name: "Map/Scheduling",
     icon: <CalenderIcon />,
     subItems: [
-      { name: "Map View", path: "/map", pro: false },
-      { name: "Create Schedule", path: "/scheduling", pro: false },
-       { name: "Manage Schedule", path: "/manageschedule", pro: false },
+      { name: "Map View", path: "/admin/map", pro: false },
+      { name: "Create Schedule", path: "/admin/scheduling", pro: false },
+       { name: "Manage Schedule", path: "/admin/manageschedule", pro: false },
     ],
   },     
   
@@ -61,37 +61,37 @@ const othersItems: NavItem[] = [
   /*{
     name: "Forms",
     icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
+    subItems: [{ name: "Form Elements", path: "/admin/form-elements", pro: false }],
   },*/
   {
     icon: <CalenderIcon />,
     name: "Calendar",
-    path: "/calendar",
+    path: "/admin/calendar",
   },
 
   {
     icon: <GroupIcon />,
     name: "User Management",
-    path: "/user-management",
+    path: "/admin/user-management",
   },
   /*{
     icon: <PieChartIcon />,
     name: "Charts",
     subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
+      { name: "Line Chart", path: "/admin/line-chart", pro: false },
+      { name: "Bar Chart", path: "/admin/bar-chart", pro: false },
     ],
   },
   /*{
     icon: <BoxCubeIcon />,
     name: "UI Elements",
     subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
+      { name: "Alerts", path: "/admin/alerts", pro: false },
+      { name: "Avatar", path: "/admin/avatars", pro: false },
+      { name: "Badge", path: "/admin/badge", pro: false },
+      { name: "Buttons", path: "/admin/buttons", pro: false },
+      { name: "Images", path: "/admin/images", pro: false },
+      { name: "Videos", path: "/admin/videos", pro: false },
     ],
   },*/
 ];

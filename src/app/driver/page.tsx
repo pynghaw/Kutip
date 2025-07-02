@@ -35,7 +35,7 @@ export default function DriverDashboard() {
       if (userObj.role !== 'driver') {
         // If not a driver, redirect to appropriate page
         if (userObj.role === 'admin') {
-          router.push('/');
+          router.push('/driver');
         } else {
           router.push('/signin');
         }

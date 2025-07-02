@@ -27,7 +27,7 @@ export default function DriverLayout({
       const userObj = JSON.parse(userData);
       if (userObj.role !== "driver") {
         if (userObj.role === "admin") {
-          router.push("/");
+          router.push("/driver");
         } else {
           router.push("/signin");
         }

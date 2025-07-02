@@ -210,6 +210,20 @@ async def get_latest_detection():
     """Get the latest plate detection result"""
     return latest_detection
 
+@app.post("/mark-collected")
+async def mark_bin_collected(plate_data: dict):
+    """Mark a bin as collected when its plate is detected"""
+    try:
+        plate_number = plate_data.get("plate")
+        if not plate_number:
+            return {"success": False, "error": "No plate number provided"}
+        
+        # Update the bin status in the database
+        # This will be handled by the frontend when it receives the detection
+        return {"success": True, "plate": plate_number, "message": "Plate detected for collection"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/stream")
 async def video_stream():
     """Stream MJPEG video feed"""

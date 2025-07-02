@@ -2,8 +2,8 @@
 import requests
 from datetime import datetime
 
-SUPABASE_URL = "https://your_project.supabase.co"
-SUPABASE_KEY = "your_anon_or_service_role_key"
+SUPABASE_URL = "https://nnfdzosgcjqvwoqlodku.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZmR6b3NnY2pxdndvcWxvZGt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5NzcxMjMsImV4cCI6MjA2MzU1MzEyM30.m2aBBCsXoNqMKuV74DACxOXjPTcWAcxlMw4crqysX-o"
 
 def log_to_supabase(bin_id, confidence, filename):
     payload = {

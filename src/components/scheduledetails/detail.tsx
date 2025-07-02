@@ -46,6 +46,8 @@ type TruckAssignment = {
   bin_id: number;
   scheduled_date: string;
   schedule_id?: number;
+  status?: string;
+  collected_at?: string;
 };
 
 type Route = {
@@ -89,6 +91,8 @@ type BinWithOrder = Bin & {
   collectionOrder: number;
   distanceFromPrevious?: number;
   estimatedArrivalTime?: string;
+  isCollected?: boolean;
+  collectedAt?: string;
 };
 
 interface DetailsProps {
@@ -113,6 +117,7 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
   const [updatingRoute, setUpdatingRoute] = useState<number | null>(null);
   const [routeStartTimes, setRouteStartTimes] = useState<Record<number, string>>({});
   const [showBinDetails, setShowBinDetails] = useState(false);
+  const [collectionAssignments, setCollectionAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     if (!scheduleId || users.length === 0) {
@@ -123,6 +128,8 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
       return;
     }
     fetchScheduleDetails();
+    
+
   }, [scheduleId, users]);
 
   useEffect(() => {
@@ -231,11 +238,14 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
       const assignmentsWithDetails = (assignments || []).map(assignment => {
         const truck = (trucks || []).find(truck => truck.truck_id === assignment.truck_id) || null;
         const driver = truck ? users.find(u => u.user_id === truck.d_id) || null : null;
+        const bin = (bins || []).find(bin => bin.bin_id === assignment.bin_id) || null;
         return {
           ...assignment,
-          bin: (bins || []).find(bin => bin.bin_id === assignment.bin_id) || null,
+          bin,
           truck,
-          driver
+          driver,
+          isCollected: assignment.status === 'collected',
+          collectedAt: assignment.collected_at
         };
       });
 
@@ -1125,54 +1135,79 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
                   {/* Bin Collection Order */}
                   {(showBinDetails || selectedRoute?.route_id === route.route_id) && orderedBinsForCard.length > 0 && (
                     <div className="border-t pt-4">
-                      <h4 className="text-md font-semibold text-gray-900 mb-3">
-                        Collection Order ({orderedBinsForCard.length} bins)
-                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-md font-semibold text-gray-900">
+                          Collection Order ({orderedBinsForCard.length} bins)
+                        </h4>
+                      </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {orderedBinsForCard.map((bin, binIndex) => (
-                          <div
-                            key={bin.bin_id}
-                            className={`p-3 rounded-lg border-l-4 ${
-                              route.status === 'completed' 
-                                ? 'border-l-green-500 bg-green-50' 
-                                : route.status === 'in_progress'
-                                ? 'border-l-yellow-500 bg-yellow-50'
-                                : 'border-l-blue-500 bg-blue-50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center space-x-2">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                                  route.status === 'completed' 
-                                    ? 'bg-green-500' 
-                                    : route.status === 'in_progress'
-                                    ? 'bg-yellow-500'
-                                    : 'bg-blue-500'
-                                }`}>
-                                  {bin.collectionOrder}
+                        {orderedBinsForCard.map((bin, binIndex) => {
+                          // Find the assignment for this bin to check collection status
+                          const assignment = scheduleDetails.assignments.find(
+                            a => a.bin_id === bin.bin_id && a.truck_id === route.truck_id
+                          );
+                          // Check both database and local storage for collection status
+                          const dbCollected = assignment?.status === 'collected' || false;
+                          const dbCollectedAt = assignment?.collected_at;
+                          
+                          // Check local storage for collection status
+                          const localCollections = typeof window !== 'undefined' ? 
+                            JSON.parse(localStorage.getItem('local_bin_collections') || '{}') : {};
+                          const scheduleKey = `${scheduleId}-${route.route_id}`;
+                          const localCollection = localCollections[scheduleKey]?.find((item: any) => item.plate === bin.bin_plate);
+                          
+                          const isCollected = dbCollected || !!localCollection;
+                          const collectedAt = dbCollectedAt || localCollection?.collectedAt;
+                          
+                          return (
+                            <div
+                              key={bin.bin_id}
+                              className={`p-3 rounded-lg border-l-4 ${
+                                isCollected
+                                  ? 'border-l-green-500 bg-green-50' 
+                                  : route.status === 'in_progress'
+                                  ? 'border-l-yellow-500 bg-yellow-50'
+                                  : 'border-l-blue-500 bg-blue-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                                    isCollected
+                                      ? 'bg-green-500' 
+                                      : route.status === 'in_progress'
+                                      ? 'bg-yellow-500'
+                                      : 'bg-blue-500'
+                                  }`}>
+                                    {bin.collectionOrder}
+                                  </div>
+                                  <span className="font-medium text-sm">
+                                    {bin.label || bin.bin_plate}
+                                  </span>
                                 </div>
-                                <span className="font-medium text-sm">
-                                  {bin.label || bin.bin_plate}
-                                </span>
+                                {isCollected && (
+                                  <div className="text-green-600" title={collectedAt ? `Collected at ${formatTime(collectedAt)}` : ''}>
+                                    ✓
+                                  </div>
+                                )}
                               </div>
-                              {route.status === 'completed' && (
-                                <div className="text-green-600">
-                                  ✓
-                                </div>
-                              )}
+                              <div className="space-y-1 text-xs text-gray-600">
+                                <p><strong>Area:</strong> {bin.area}</p>
+                                <p><strong>Coordinates:</strong> {bin.latitude.toFixed(4)}, {bin.longitude.toFixed(4)}</p>
+                                {bin.distanceFromPrevious && binIndex > 0 && (
+                                  <p><strong>Distance:</strong> {bin.distanceFromPrevious.toFixed(2)} km</p>
+                                )}
+                                {bin.estimatedArrivalTime && route.status !== 'completed' && !isCollected && (
+                                  <p><strong>Est. Arrival:</strong> {formatTime(bin.estimatedArrivalTime)}</p>
+                                )}
+                                {isCollected && collectedAt && (
+                                  <p><strong>Collected:</strong> {formatTime(collectedAt)}</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="space-y-1 text-xs text-gray-600">
-                              <p><strong>Area:</strong> {bin.area}</p>
-                              <p><strong>Coordinates:</strong> {bin.latitude.toFixed(4)}, {bin.longitude.toFixed(4)}</p>
-                              {bin.distanceFromPrevious && binIndex > 0 && (
-                                <p><strong>Distance:</strong> {bin.distanceFromPrevious.toFixed(2)} km</p>
-                              )}
-                              {bin.estimatedArrivalTime && route.status !== 'completed' && (
-                                <p><strong>Est. Arrival:</strong> {formatTime(bin.estimatedArrivalTime)}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
