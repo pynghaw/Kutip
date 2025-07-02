@@ -85,6 +85,7 @@ export default function DriverCameraPage() {
   const [truck, setTruck] = useState<any | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [routeDisplayed, setRouteDisplayed] = useState(false);
+  const [collectionProgress, setCollectionProgress] = useState({ collected: 0, total: 0 });
 
   useEffect(() => {
     // Check if user is logged in and is a driver
@@ -272,6 +273,13 @@ export default function DriverCameraPage() {
           // Apply optimal route order (same as schedule detail page)
           const orderedBins = calculateOptimalRoute(binsWithStatus);
           setRouteBins(orderedBins);
+          
+          // Initialize collection progress
+          const collectedCount = orderedBins.filter(bin => bin.isCollected).length;
+          setCollectionProgress({
+            collected: collectedCount,
+            total: orderedBins.length
+          });
         }
       } else {
         console.log('❌ No active route found for this truck');
@@ -321,11 +329,22 @@ export default function DriverCameraPage() {
     console.log(`✅ Bin ${plate} marked as collected locally`);
     
     // Update local state to show bin as collected
-    setRouteBins(prev => prev.map(bin => 
-      bin.bin_plate === plate 
-        ? { ...bin, isCollected: true, collectedAt: new Date().toISOString() }
-        : bin
-    ));
+    setRouteBins(prev => {
+      const updatedBins = prev.map(bin => 
+        bin.bin_plate === plate 
+          ? { ...bin, isCollected: true, collectedAt: new Date().toISOString() }
+          : bin
+      );
+      
+      // Update collection progress immediately
+      const collectedCount = updatedBins.filter(bin => bin.isCollected).length;
+      setCollectionProgress({
+        collected: collectedCount,
+        total: updatedBins.length
+      });
+      
+      return updatedBins;
+    });
     
     // Check if all bins in the route are collected
     checkAndUpdateRouteCompletion();
@@ -398,11 +417,11 @@ export default function DriverCameraPage() {
   };
 
   // Calculate optimal route order using nearest neighbor algorithm (same as schedule detail page)
-  const calculateOptimalRoute = (bins: Bin[]): (Bin & { collectionOrder: number; distanceFromPrevious?: number })[] => {
+  const calculateOptimalRoute = (bins: Bin[]): (Bin & { collectionOrder: number; distanceFromPrevious?: number; isCollected?: boolean; collectedAt?: string })[] => {
     if (bins.length === 0) return [];
 
     const unvisited = [...bins];
-    const orderedBins: (Bin & { collectionOrder: number; distanceFromPrevious?: number })[] = [];
+    const orderedBins: (Bin & { collectionOrder: number; distanceFromPrevious?: number; isCollected?: boolean; collectedAt?: string })[] = [];
     let currentLocation = { lat: COLLECTION_CENTER.lat, lng: COLLECTION_CENTER.lng };
 
     // Start from collection center and find nearest bin
@@ -719,7 +738,7 @@ export default function DriverCameraPage() {
               </h2>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {routeBins.filter(bin => bin.isCollected).length} of {routeBins.length} bins collected
+                  {collectionProgress.collected} of {collectionProgress.total} bins collected
                 </span>
                 <button
                   onClick={() => setShowMap(!showMap)}
@@ -864,14 +883,14 @@ export default function DriverCameraPage() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium">Progress</span>
                         <span className="text-sm">
-                          {routeBins.filter(bin => bin.isCollected).length} / {routeBins.length}
+                          {collectionProgress.collected} / {collectionProgress.total}
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                         <div
                           className="bg-green-600 h-2 rounded-full transition-all duration-300"
                           style={{
-                            width: `${(routeBins.filter(bin => bin.isCollected).length / routeBins.length) * 100}%`
+                            width: `${collectionProgress.total > 0 ? (collectionProgress.collected / collectionProgress.total) * 100 : 0}%`
                           }}
                         ></div>
                       </div>
