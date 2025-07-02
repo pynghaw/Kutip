@@ -775,12 +775,7 @@ export default function BinsTable() {
     return (
         <div className="p-4">
             <div className="mb-4 flex justify-end space-x-3"> {/* Use space-x-3 for consistent spacing */}
-                <button
-                    onClick={handleNavigateToMap}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-                >
-                    Map View
-                </button>
+               
 
                 {/* --- NEW: Add Customer Button and Dialog --- */}
                 <Dialog open={isAddCustomerModalOpen} onOpenChange={(isOpen) => {
