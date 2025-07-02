@@ -118,6 +118,7 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
   const [routeStartTimes, setRouteStartTimes] = useState<Record<number, string>>({});
   const [showBinDetails, setShowBinDetails] = useState(false);
   const [collectionAssignments, setCollectionAssignments] = useState<any[]>([]);
+  const [routeDisplayed, setRouteDisplayed] = useState(false);
 
   useEffect(() => {
     if (!scheduleId || users.length === 0) {
@@ -135,6 +136,11 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
   useEffect(() => {
     if (showMap && mapContainer.current && !map.current) {
       initializeMap();
+    }
+    
+    // Reset route displayed flag when map is hidden
+    if (!showMap) {
+      setRouteDisplayed(false);
     }
     
     return () => {
@@ -155,6 +161,9 @@ export default function ScheduleDetailPage({ filterByDriver = false }: DetailsPr
   useEffect(() => {
     console.log('routeBins changed:', routeBins.length, 'bins');
     if (selectedRoute && map.current && scheduleDetails && routeBins.length > 0 && showMap) {
+      // Reset route displayed flag when route data changes
+      setRouteDisplayed(false);
+      
       console.log('routeBins effect triggered - calling displayRouteOnMap');
       displayRouteOnMap();
     }
@@ -509,6 +518,12 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
       return;
     }
 
+    // Prevent multiple calls that cause blinking
+    if (routeDisplayed) {
+      console.log('Route already displayed, skipping');
+      return;
+    }
+
     // Wait for map to be loaded before proceeding
     if (!map.current.isStyleLoaded()) {
       console.log('Waiting for map style to load...');
@@ -685,6 +700,9 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
         console.error('Error fitting bounds:', error);
       }
     }
+
+    // Mark the route as displayed
+    setRouteDisplayed(true);
   };
 
   const updateRouteStatus = async (routeId: number, newStatus: 'in_progress' | 'completed') => {
@@ -821,6 +839,9 @@ const checkAndUpdateScheduleStatus = async (routes: Route[]) => {
   const handleViewRoute = async (route: Route & { truck: Truck | null; driver: Driver | null }) => {
     setSelectedRoute(route);
     setShowMap(true);
+    
+    // Reset route displayed flag when route changes
+    setRouteDisplayed(false);
     
     // Calculate and display route info immediately
     const info = await calculateRouteInfo(route);
