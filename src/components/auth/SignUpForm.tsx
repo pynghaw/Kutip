@@ -80,7 +80,7 @@ export default function SignUpForm() {
       
       // Redirect to user management page after 2 seconds
       setTimeout(() => {
-        router.push('/user-management');
+        router.push('/admin/user-management');
       }, 2000);
       
       setFormData(initialFormData);
@@ -95,7 +95,7 @@ export default function SignUpForm() {
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
-          href="/user-management"
+          href="/admin/user-management"
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
@@ -278,7 +278,7 @@ export default function SignUpForm() {
             <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
               Need to manage existing users?{" "}
               <Link
-                href="/user-management"
+                href="/admin/user-management"
                 className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
               >
                 View User List
