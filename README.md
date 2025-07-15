@@ -8,17 +8,16 @@ Kutip is a smart web-based waste collection system developed under the SECP3106 
 - **Team**: GardeniaProMax
 - **Client**: Treom Tech Sdn Bhd
 - **Duration**: May–July 2025
-- **Lecturer**: Assoc. Prof. Dr. Haza Nuzly Bin Abdull Hamed
 
 ## 👥 Team Members & Roles
 
-| No. | Name             | Matric No     | Role & Module In-Charge                        | Contribution |
-|-----|------------------|---------------|------------------------------------------------|--------------|
-| 1   | Lee Yik Hong     | A21BE0376     | Module 1 – IoT Sensor Integration              | 20%          |
-| 2   | Koh Li Hui       | A22EC0059     | Module 2 – Bin & Truck Management              | 20%          |
-| 3   | Tiew Chuan Rong  | A22EC0112     | Module 3 & 5 – Scheduling & Authentication     | 20%          |
-| 4   | Chen Pyng Haw    | A22EC0042     | Module 4 – Dashboard & Reporting               | 20%          |
-| 5   | Wong Jun Ji      | A22EC0117     | System Debugging and Integration               | 20%          |
+| No. | Name                   | Role & Module In-Charge                        |  
+|-----|------------------|------------------------------------------------|
+| 1   | Lee Yik Hong          | Module 1 – IoT Sensor Integration              |           
+| 2   | Koh Li Hui            | Module 2 – Bin & Truck Management              |           
+| 3   | Tiew Chuan Rong       | Module 3 & 5 – Scheduling & Authentication     |           
+| 4   | Chen Pyng Haw         | Module 4 – Dashboard & Reporting               |           
+| 5   | Wong Jun Ji           | System Debugging and Integration               |           
 
 ---
 
