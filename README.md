@@ -19,13 +19,13 @@ Kutip is a smart web-based waste collection system developed under the SECP3106 
 | 4   | Chen Pyng Haw         | Module 4 – Dashboard & Reporting               |           
 | 5   | Wong Jun Ji           | System Debugging and Integration               |           
 
----
+
 
 ## 🧠 Problem Statement
 
 Traditional waste collection in Malaysia is manual, inefficient, and lacks real-time insights. Fixed schedules and poor bin monitoring lead to fuel waste, overflowing bins, and high costs.
 
----
+
 
 ## 💡 Proposed Solution
 
@@ -37,7 +37,7 @@ Kutip resolves these challenges through:
 - **Real-Time Dashboard & Reports**
 - **Role-Based Authentication for Admins and Drivers**
 
----
+
 
 ## ⚙️ Tech Stack
 
@@ -51,7 +51,7 @@ Kutip resolves these challenges through:
 | Authentication       | bcrypt, JWT                                          |
 | Dev Tools            | Git, GitHub, Jira, Google Meet, WhatsApp            |
 
----
+
 
 ## 🧩 Key Modules
 
@@ -71,7 +71,6 @@ Kutip resolves these challenges through:
    - Secure login
    - Role-based access control
 
----
 
 ## 🛠️ Installation (Localhost Setup)
 
@@ -109,7 +108,7 @@ Kutip resolves these challenges through:
 
 > Detailed installation steps available in the `User Manual` section of the full report.
 
----
+
 
 ## 🔐 User Credentials
 
@@ -126,7 +125,6 @@ Kutip resolves these challenges through:
 | Lebron James   | james@gmail.com  | 123456   |
 | Kevin Durant   | durant@gmail.com | 123456   |
 
----
 
 ## 📊 Database Design
 
@@ -134,7 +132,7 @@ Kutip resolves these challenges through:
 - Main Tables: `users`, `bins`, `trucks`, `truck_assignments`, `pickups`, `schedules`, `routes`
 - Supports: Referential integrity, temporal tracking, role-based access
 
----
+
 
 ## 🌀 Agile & Jira Integration
 
@@ -142,7 +140,6 @@ Kutip resolves these challenges through:
 - Sprint boards, backlog grooming, burndown charts
 - Jira Project: [Link](https://pynghaw5.atlassian.net/jira/software/projects/SCRUM/summary)
 
----
 
 ## 📚 Documentation
 
@@ -151,7 +148,7 @@ Kutip resolves these challenges through:
 - [STD](https://docs.google.com/document/d/1cC96Thgde6dp78PrVUUVVmaru8QSCgPS/edit)
 - [UAT Report](https://docs.google.com/document/d/1U4i-j68sCVgHeW7Yre_Epdwo8z2HWc22-EdJQG3TIoE/edit)
 
----
+
 
 ## 📎 References
 
@@ -163,12 +160,6 @@ Kutip resolves these challenges through:
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
 
----
 
-## 📩 Contact
 
-For project-related inquiries:
-```
-📧 Email: irfan@treom.io  
-📱 Telegram: @rolodex
-```
+
